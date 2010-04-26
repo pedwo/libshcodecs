@@ -107,7 +107,8 @@ struct private_data {
 	struct encode_data encdata[MAX_ENCODERS];
 
 	int do_preview;
-	void *display;
+	DISPLAY *display;
+	SHVEU *veu;
 
 	int rotate_cap;
 
@@ -209,14 +210,12 @@ void *convert_main(void *data)
 
 			/* We are clipping, not scaling, as we need to perform a rotation,
 		   	but the VEU cannot do a rotate & scale at the same time. */
-			uiomux_lock (pvt->uiomux, UIOMUX_SH_VEU);
-			shveu_operation(0,
-				cap_y, cap_c,
-				cam->cap_w, cam->cap_h, cam->cap_w, SHVEU_YCbCr420,
+			shveu_crop(pvt->veu, 1, 0, 0, pvt->encdata[i].enc_w, pvt->encdata[i].enc_h);
+			shveu_rescale(pvt->veu,
+  				cap_y, cap_c,
+				cam->cap_w, cam->cap_h, V4L2_PIX_FMT_NV12,
 				enc_y, enc_c,
-				pvt->encdata[i].enc_w, pvt->encdata[i].enc_h, pvt->encdata[i].enc_w, SHVEU_YCbCr420,
-				pvt->rotate_cap);
-			uiomux_unlock (pvt->uiomux, UIOMUX_SH_VEU);
+				pvt->encdata[i].enc_w, pvt->encdata[i].enc_h, V4L2_PIX_FMT_NV12);
 
 			/* Let the encoder get_input function return */
 			pthread_mutex_unlock(&pvt->encdata[i].encode_start_mutex);
@@ -224,12 +223,10 @@ void *convert_main(void *data)
 
 		if (cam == pvt->encdata[0].camera && pvt->do_preview) {
 			/* Use the VEU to scale the capture buffer to the frame buffer */
-			uiomux_lock (pvt->uiomux, UIOMUX_SH_VEU);
 			display_update(pvt->display,
 					cap_y, cap_c,
 					cam->cap_w, cam->cap_h, cam->cap_w,
 					V4L2_PIX_FMT_NV12);
-			uiomux_unlock (pvt->uiomux, UIOMUX_SH_VEU);
 		}
 
 		capture_queue_buffer (cam->ceu, cap_y);
@@ -335,7 +332,7 @@ void cleanup (void)
 
 	if (pvt->do_preview)
 		display_close(pvt->display);
-	shveu_close();
+	shveu_close(pvt->veu);
 
 	for (i=0; i < pvt->nr_encoders; i++) {
 		close_output_file(pvt->encdata[i].output_fp);
@@ -537,12 +534,12 @@ int main(int argc, char *argv[])
 	signal (SIGPIPE, sig_handler);
 
 	/* VEU initialisation */
-	if (shveu_open() < 0) {
+	if ((pvt->veu = shveu_open()) == 0) {
 		fprintf (stderr, "Could not open VEU, exiting\n");
 	}
 
 	if (pvt->do_preview) {
-		pvt->display = display_open(0);
+		pvt->display = display_open();
 		if (!pvt->display) {
 			return -5;
 		}

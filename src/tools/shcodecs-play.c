@@ -47,7 +47,6 @@
 #include <pthread.h>
 #include <errno.h>
 #include <shcodecs/shcodecs_decoder.h>
-#include <shveu/shveu.h>
 
 #include "framerate.h"
 #include "display.h"
@@ -59,7 +58,7 @@
 /* #define DEBUG */
 
 struct private_data {
-	void *display;
+	DISPLAY *display;
 
 	/* Output thread related data */
 	pthread_mutex_t	 	mutex;			/* Protect data */
@@ -355,7 +354,7 @@ int main(int argc, char **argv)
 	pvt = &pvt_data;
 
 	/* Initialize display */
-	pvt->display = display_open(0);
+	pvt->display = display_open();
 	if (!pvt->display) {
 		fprintf(stderr, "Unable to open display\n");
 		exit(-3);
@@ -534,8 +533,9 @@ int main(int argc, char **argv)
 	pvt->max_nal_size = (pvt->src_w * pvt->src_h * 3) / 2; /* YCbCr420 */
 	pvt->max_nal_size /= 2; /* Apply MinCR */
 
-	display_set_position(pvt->display,
-		pvt->dst_w, pvt->dst_h, pvt->dst_p, pvt->dst_q);
+// TODO
+//	display_set_position(pvt->display,
+//		pvt->dst_w, pvt->dst_h, pvt->dst_p, pvt->dst_q);
 
 
 	if (stream_type == -1) {
@@ -560,12 +560,6 @@ int main(int argc, char **argv)
 	if (rc){
 		fprintf(stderr, "Creating output thread failed, exiting\n");
 		exit(-1);
-	}
-
-	/* Open the VEU UIO */
-	if (shveu_open () < 0) {
-		fprintf (stderr, "Could not open VEU, exiting\n");
-		exit (EXIT_FAILURE);
 	}
 
 	/* Open file descriptors to talk to the VPU driver */
@@ -607,7 +601,6 @@ int main(int argc, char **argv)
 	shcodecs_decoder_close(decoder);
 	file_read_deinit(pvt);
 	display_close(pvt->display);
-	shveu_close();
 
 	pthread_mutex_destroy(&pvt->mutex);
 	pthread_cond_destroy(&pvt->avail);
