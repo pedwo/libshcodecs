@@ -109,56 +109,30 @@ else
   TESTS_INFO="(Valgrind testing not enabled)"
 fi
 
-dnl Checks for libraries.
-LIBS=""
 
-dnl The following depend on the functions in src/libshcodecs/m4driver.c
-dnl AC_CHECK_LIB(m4iph, m4iph_vpu4_decode, HAVE_M4IPH="yes", , [-lm4vsd])
-dnl AC_CHECK_LIB(m4vsd, m4vsd_start_decoding, HAVE_M4VSD="yes", , [-lm4iph])
-dnl AC_CHECK_LIB(avcbd, avcbd_decode_picture, HAVE_AVCBD="yes", , [-lm4vsd -lm4iph])
-
+dnl
+dnl Check for VPU middleware libraries.
+dnl
 VPU4_BASE_LIBS="-lm4iph"
 VPU4_DEC_LIBS="$VPU4_BASE_LIBS -lavcbd -lm4vsd"
 VPU4_ENC_LIBS="$VPU4_BASE_LIBS -lavcbe -lm4vse"
 AC_SUBST(VPU4_DEC_LIBS)
 AC_SUBST(VPU4_ENC_LIBS)
 
+
 dnl
 dnl Check for libuiomux
 dnl
-
-HAVE_UIOMUX=no
-UIOMUX_SUPPORT=no
-
-ac_enable_uiomux=yes
-AC_ARG_ENABLE(uiomux,
-  AC_HELP_STRING([--disable-uiomux], [disable building of UIOMux support]),
-  [ ac_enable_uiomux=no ], [ ac_enable_uiomux=yes ])
-
-if test "x${ac_enable_uiomux}" = xyes ; then
-  if test "x$HAVE_PKG_CONFIG" = "xyes" ; then
-    PKG_CHECK_MODULES(UIOMUX, uiomux, HAVE_UIOMUX=yes, HAVE_UIOMUX=no)
-  fi
-
-  if test "x$HAVE_UIOMUX" = "xno" ; then
-    AC_CHECK_LIB(uiomux, uiomux_init, HAVE_UIOMUX="maybe", , [-l...])
-    if test "x$HAVE_UIOMUX" = xmaybe ; then
-      AC_CHECK_HEADER([uiomux/uiomux.h], HAVE_UIOMUX="yes", HAVE_UIOMUX="no")
-    fi
-    if test "x$HAVE_UIOMUX" = xyes ; then
-      UIOMUX_LIBS="-luiomux"
-    fi
-  fi
-
-  if test "x$HAVE_UIOMUX" = "xyes" ; then
-    AC_DEFINE(HAVE_UIOMUX, [1], [Define to 1 if you have libuiomux])
-    UIOMUX_SUPPORT="yes"
-  fi
-else
-  UIOMUX_SUPPORT="disabled"
+PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.1.0, HAVE_UIOMUX="yes", HAVE_UIOMUX="no")
+if test "x$HAVE_UIOMUX" != "xyes" ; then
+  AC_MSG_ERROR([libuiomux is required])
+  AC_ERROR
 fi
-AM_CONDITIONAL(HAVE_UIOMUX, [test "x$HAVE_UIOMUX" = "xyes"])
+AC_SUBST(UIOMUX_CFLAGS)
+AC_SUBST(UIOMUX_LIBS)
 
+
+dnl
 dnl Check for libshveu
 dnl
 
@@ -212,9 +186,6 @@ fi
 
 dnl Overall configuration success flag
 shcodecs_config_ok=yes
-
-shcodecs_read_programs=""
-shcodecs_rw_programs=""
 
 dnl
 dnl  Configuration option for building of experimental code.
@@ -350,7 +321,6 @@ AC_MSG_RESULT([
   General configuration:
 
     Experimental code: ........... ${ac_enable_experimental}
-    UIOMux support: .............. ${UIOMUX_SUPPORT}
     libshveu support: ............ ${SHVEU_SUPPORT}
 
   Installation paths:
