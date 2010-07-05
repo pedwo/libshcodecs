@@ -123,13 +123,7 @@ AC_SUBST(VPU4_ENC_LIBS)
 dnl
 dnl Check for libuiomux
 dnl
-PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.1.0, HAVE_UIOMUX="yes", HAVE_UIOMUX="no")
-if test "x$HAVE_UIOMUX" != "xyes" ; then
-  AC_MSG_ERROR([libuiomux is required])
-  AC_ERROR
-fi
-AC_SUBST(UIOMUX_CFLAGS)
-AC_SUBST(UIOMUX_LIBS)
+PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.1.0)
 
 
 dnl
@@ -145,29 +139,17 @@ AC_ARG_ENABLE(shveu,
   [ ac_enable_shveu=no ], [ ac_enable_shveu=yes ])
 
 if test "x${ac_enable_shveu}" = xyes ; then
-  if test "x$HAVE_PKG_CONFIG" = "xyes" ; then
-    PKG_CHECK_MODULES(SHVEU, shveu, HAVE_SHVEU=yes, HAVE_SHVEU=no)
-  fi
-
-  if test "x$HAVE_SHVEU" = "xno" ; then
-    AC_CHECK_LIB(shveu, shveu_open, HAVE_SHVEU="maybe", , [-l...])
-    if test "x$HAVE_SHVEU" = xmaybe ; then
-      AC_CHECK_HEADER([shveu/shveu.h], HAVE_SHVEU="yes", HAVE_SHVEU="no")
-    fi
-    if test "x$HAVE_SHVEU" = xyes ; then
-      SHVEU_LIBS="-lshveu"
-    fi
-  fi
+  PKG_CHECK_MODULES(SHVEU, shveu, HAVE_SHVEU=yes, HAVE_SHVEU=no)
 
   if test "x$HAVE_SHVEU" = "xyes" ; then
     AC_DEFINE(HAVE_SHVEU, [1], [Define to 1 if you have libshveu])
     SHVEU_SUPPORT="yes"
-    shcodecs_pkgdeps="$shcodecs_pkgdeps shveu"
   fi
 else
   SHVEU_SUPPORT="disabled"
 fi
 AM_CONDITIONAL(HAVE_SHVEU, [test "x$HAVE_SHVEU" = "xyes"])
+
 
 # check for getopt in a separate library
 HAVE_GETOPT=no
