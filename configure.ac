@@ -23,8 +23,6 @@ AC_CONFIG_SRCDIR([src/libshcodecs/shcodecs_decoder.c])
 
 AC_PREREQ(2.53)
 
-AC_CANONICAL_TARGET
-
 AM_INIT_AUTOMAKE(libshcodecs, 1.1.1)
 AM_CONFIG_HEADER(config.h)
 
