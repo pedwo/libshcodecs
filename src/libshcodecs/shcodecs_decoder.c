@@ -39,6 +39,24 @@
 #include "m4vsd_h263dec.h"
 
 /* #define DEBUG */
+/* #define OUTPUT_ERROR_MSGS */
+
+#ifdef OUTPUT_ERROR_MSGS
+#define MSG_LEN 127
+static long
+vpu_err(SHCodecs_Decoder *dec, const char *func, int line, long rc)
+{
+	char msg[MSG_LEN+1];
+	msg[MSG_LEN] = 0;
+	snprintf(msg, MSG_LEN, "%s, line %d: returned %ld", func, line, rc);
+	m4iph_avcbd_perror(msg, rc);
+	exit(1);
+	return rc;
+}
+#else
+#define vpu_err(enc, func, line, rc) (rc)
+#endif
+
 
 /* XXX: Forward declarations */
 static int decode_frame(SHCodecs_Decoder * decoder);
@@ -245,10 +263,13 @@ static int stream_init(SHCodecs_Decoder * decoder)
 {
 	int i,j;
 	int iContext_ReqWorkSize;
+	int size_of_Y;
 	void *pv_wk_buff;
 	size_t dp_size;
 	TAVCBD_FMEM *frame_list;
 	long stream_mode;
+	unsigned char *pBuf;
+	long rc;
 
 	avcbd_start_decoding();
 
@@ -258,10 +279,8 @@ static int stream_init(SHCodecs_Decoder * decoder)
 				    F_H264 ? AVCBD_TYPE_AVC :
 				    AVCBD_TYPE_MPEG4, decoder->si_max_fx,
 				    decoder->si_max_fy, 2) + 16;
-	if (iContext_ReqWorkSize == -1) {
-		/* printf("Invalid parameters for avcbd_get_workarea_size()\n"); */
-		return -1;
-	}
+	if (iContext_ReqWorkSize < 0)
+		return vpu_err(decoder, __func__, __LINE__, iContext_ReqWorkSize);
 
 	/* Allocate context memory */
 	decoder->si_ctxt = calloc(iContext_ReqWorkSize, 1);
@@ -281,8 +300,8 @@ static int stream_init(SHCodecs_Decoder * decoder)
            pragmatic approach when we don't know the number of reference
            frames in the stream... */
         decoder->si_fnum = CFRAME_NUM;
-        iContext_ReqWorkSize = decoder->si_max_fx * decoder->si_max_fy;
-        if (iContext_ReqWorkSize > (720*576)) {
+	size_of_Y = ((decoder->si_max_fx + 15) & ~15) * ((decoder->si_max_fy + 15) & ~15);
+        if (size_of_Y > (720*576)) {
                 decoder->si_fnum = 2;
         }
 	decoder->si_flist = calloc(decoder->si_fnum, sizeof(FrameInfo));
@@ -290,32 +309,22 @@ static int stream_init(SHCodecs_Decoder * decoder)
 		    decoder->si_fnum * sizeof(FrameInfo), "frame list",
 		    err1);
 
-	decoder->si_mbnum = iContext_ReqWorkSize >> 8;
+	decoder->si_mbnum = size_of_Y >> 8;
 	for (i = 0; i < decoder->si_fnum; i++) {
 		/*
  		 * Frame memory should be aligned on a 32-byte boundary.
 		 * Although the VPU requires 16 bytes alignment, the
 		 * cache line size is 32 bytes on the SH4.
 		 */
-		m4iph_vpu_lock();
 
-		/* luma frame */
-		decoder->si_flist[i].Y_fmemp =
-		    m4iph_sdr_malloc(iContext_ReqWorkSize, 32);
-
-		/* printf("%02d--Y=%X,",i,(int)decoder->si_flist[i].Y_fmemp); */
-		CHECK_ALLOC(decoder->si_flist[i].Y_fmemp,
-			    iContext_ReqWorkSize,
+		pBuf = m4iph_sdr_malloc(size_of_Y + size_of_Y/2, 32);
+		/* printf("%02d--Y=%X,",i,(int)pBuf); */
+		CHECK_ALLOC(pBuf,
+			    size_of_Y + size_of_Y/2,
 			    "Y component (kernel memory)", err1);
 
-		/* chroma frame */
-		decoder->si_flist[i].C_fmemp
-		    = m4iph_sdr_malloc(iContext_ReqWorkSize >> 1, 32);
-		/* printf("C=%X\n",(int)decoder->si_flist[i].C_fmemp); */
-		CHECK_ALLOC(decoder->si_flist[i].C_fmemp,
-			    iContext_ReqWorkSize >> 1,
-			    "C component (kernel memory)", err1);
-		m4iph_vpu_unlock();
+		decoder->si_flist[i].Y_fmemp = pBuf;
+		decoder->si_flist[i].C_fmemp = pBuf + size_of_Y;
 	}
 
 	if (decoder->si_type == F_H264) {
@@ -328,9 +337,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 			    err1);
 	}
 	/* 16 bytes for each macroblocks */
-	dp_size = (iContext_ReqWorkSize * 16) >> 8;
-
-	m4iph_vpu_lock();
+	dp_size = (size_of_Y * 16) >> 8;
 
 	decoder->si_dp_264 = m4iph_sdr_malloc(dp_size, 32);
 	CHECK_ALLOC(decoder->si_dp_264, dp_size, "data partition 1", err1);
@@ -338,17 +345,11 @@ static int stream_init(SHCodecs_Decoder * decoder)
 	decoder->si_dp_m4 = m4iph_sdr_malloc(dp_size, 32);
 	CHECK_ALLOC(decoder->si_dp_m4, dp_size, "data partition 1", err1);
 
-	decoder->si_ff.Y_fmemp =
-	    m4iph_sdr_malloc(iContext_ReqWorkSize, 32);
-	CHECK_ALLOC(decoder->si_ff.Y_fmemp, iContext_ReqWorkSize,
+	pBuf = m4iph_sdr_malloc(size_of_Y + size_of_Y/2, 32);
+	CHECK_ALLOC(pBuf, size_of_Y + size_of_Y/2,
 		    "Y component of filtered frame", err1);
-
-	decoder->si_ff.C_fmemp =
-	    m4iph_sdr_malloc(iContext_ReqWorkSize >> 1, 32);
-	CHECK_ALLOC(decoder->si_ff.C_fmemp, (iContext_ReqWorkSize >> 1),
-		    "C component of filtered frame", err1);
-
-	m4iph_vpu_unlock();
+	decoder->si_ff.Y_fmemp = pBuf;
+	decoder->si_ff.C_fmemp = pBuf + size_of_Y;
 
 	stream_mode = (decoder->si_type == F_H264) ? AVCBD_TYPE_AVC : AVCBD_TYPE_MPEG4;
 
@@ -362,14 +363,16 @@ static int stream_init(SHCodecs_Decoder * decoder)
 		frame_list[j].C_fmemp =
 		    ALIGN_NBYTES(decoder->si_flist[j].C_fmemp, 32);
 	}
-	avcbd_init_sequence(decoder->si_ctxt, decoder->si_ctxt_size,
+	rc = avcbd_init_sequence(decoder->si_ctxt, decoder->si_ctxt_size,
 			    decoder->si_fnum, frame_list,
 			    decoder->si_max_fx, decoder->si_max_fy, 2,
 			    ALIGN_NBYTES(decoder->si_dp_264, 32),
 			    ALIGN_NBYTES(decoder->si_dp_m4, 32), stream_mode,
 			    &pv_wk_buff);
-
 	free(frame_list);
+	if (rc != 0)
+		return vpu_err(decoder, __func__, __LINE__, rc);
+
 
 	if (decoder->si_type == F_H264) {
 		avcbd_set_resume_err (decoder->si_ctxt, 0, AVCBD_CNCL_REF_TYPE1);
@@ -560,11 +563,8 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 			len--;
 #endif
 			ret = avcbd_set_stream_pointer(decoder->si_ctxt, input, len, NULL);
-#ifdef DEBUG
-			fprintf
-			    (stderr, "shcodecs_decoder::decode_frame: H.264 avcbd_set_stream_pointer returned %ld\n",
-			     ret);
-#endif
+			if (ret < 0)
+				return vpu_err(decoder, __func__, __LINE__, ret);
 		} else {
 			unsigned char *ptr;
 			long hosei = 0;
@@ -604,18 +604,26 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 			}
 #endif
 
-			avcbd_set_stream_pointer(decoder->si_ctxt,
+			ret = avcbd_set_stream_pointer(decoder->si_ctxt,
 						 decoder->si_input + decoder->si_ipos,
 						 decoder->si_ilen + hosei, NULL);
+			if (ret < 0)
+				return vpu_err(decoder, __func__, __LINE__, ret);
 		}
 
 		m4iph_vpu_lock();
 		ret = avcbd_decode_picture(decoder->si_ctxt, decoder->si_ilen * 8);
+		if (ret < 0)
+			(void) vpu_err(decoder, __func__, __LINE__, ret);
+
 #ifdef DEBUG
 		fprintf
 		    (stderr, "shcodecs_decoder::decode_frame: avcbd_decode_picture returned %d\n", ret);
 #endif
 		ret = avcbd_get_last_frame_stat(decoder->si_ctxt, &decoder->last_frame_status);
+		if (ret < 0)
+			return vpu_err(decoder, __func__, __LINE__, ret);
+
 		counter = 1;
 		m4iph_vpu_unlock();
 
@@ -695,51 +703,29 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 static int extract_frame(SHCodecs_Decoder * decoder, long frame_index)
 {
 	FrameInfo *frame = &decoder->si_flist[frame_index];
-	int luma_size = decoder->si_fx * decoder->si_fy;
-	unsigned long ymem, cmem, page;
-	int ry;
 	unsigned char *yf, *cf;
-	static long frame_cnt = 1;
-	int pagesize = getpagesize();
-        int cb_ret=0;
+	int cb_ret=0;
+	int size_of_Y = decoder->si_max_fx * decoder->si_max_fy;
 
 #ifdef DEBUG
-	fprintf(stderr, "extract_frame: output frame %d, frame_index=%d\n", frame_cnt++, frame_index);
+	fprintf(stderr, "extract_frame: output frame %d, frame_index=%d\n", decoder->frame_count, frame_index);
 #endif
-	ymem = (unsigned long) frame->Y_fmemp;
-	cmem = (unsigned long) frame->C_fmemp;
 
-        if (decoder->use_physical) {
-                /* Call user's output callback */
-	        if (decoder->decoded_cb) {
-		        cb_ret = decoder->decoded_cb(decoder, 
-                                                     (unsigned char *)ymem, luma_size, 
-                                                     (unsigned char *)cmem, luma_size >> 1,
-                                                     decoder->decoded_cb_data);
-	        }
-        } else {
-	        page = ymem & ~(pagesize - 1);
-	        ry = (unsigned long) ymem - page;
-	        yf = m4iph_map_sdr_mem((void *) page,
-			       luma_size + (luma_size >> 1) + ry + 31);
-	        if (yf == NULL) {
-	        	fprintf(stderr, "%s: Aborting since mmap() failed.\n",
-	        	       __FUNCTION__);
-	        	abort();
-	        }
-	        /* C component should immediately follow the Y component */
-	        cf = ALIGN_NBYTES(yf + ry + luma_size, 32);
+	/* Call user's output callback */
+	if (decoder->decoded_cb) {
+		if (decoder->use_physical) {
+			yf = frame->Y_fmemp;
+		} else {
+			yf = m4iph_addr_to_virt(frame->Y_fmemp);
+		}
 
-                /* Call user's output callback */
-	        if (decoder->decoded_cb) {
-		        cb_ret = decoder->decoded_cb(decoder, 
-                                                     yf + ry, luma_size, 
-                                                     cf, luma_size >> 1,
-                                                     decoder->decoded_cb_data);
-	        }
+		cf = yf + size_of_Y;
 
-	        m4iph_unmap_sdr_mem(yf, luma_size + (luma_size >> 1) + ry + 31);
-        }
+		cb_ret = decoder->decoded_cb(decoder,
+			yf, size_of_Y,
+			cf, size_of_Y/2,
+			decoder->decoded_cb_data);
+	}
 
 	decoder->frame_count++;
 

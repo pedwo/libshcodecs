@@ -71,15 +71,15 @@ struct camera_data {
 	unsigned long cap_h;
 	int captured_frames;
 
-	pthread_t convert_thread;
 	pthread_t capture_thread;
+
 	struct Queue * captured_queue;
 	pthread_mutex_t capture_start_mutex;
-
-	struct framerate * cap_framerate;
 };
 
 struct encode_data {
+	pthread_t thread;
+
 	char ctrl_filename[MAXPATHLEN];
 	APPLI_INFO ainfo;
 
@@ -87,13 +87,19 @@ struct encode_data {
 
 	long stream_type;
 
-	pthread_mutex_t encode_start_mutex;
+	struct Queue * enc_input_q;
+	struct Queue * enc_input_empty_q;
 	FILE *output_fp;
 
 	unsigned long enc_w;
 	unsigned long enc_h;
 
 	struct framerate * enc_framerate;
+	int skipsize;
+	int skipcount;
+
+	double ifps;
+	double mfps;
 };
 
 struct private_data {
@@ -111,8 +117,6 @@ struct private_data {
 	SHVEU *veu;
 
 	int rotate_cap;
-
-	int output_frames;
 };
 
 
@@ -164,8 +168,53 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 		 void *user_data)
 {
 	struct camera_data *cam = (struct camera_data*)user_data;
+	struct private_data *pvt = &pvt_data;
+	struct encode_data *encdata;
+	int pitch, offset;
+	void *ptr;
+	unsigned long enc_y, enc_c;
+	unsigned long cap_y, cap_c;
+	int i;
 
-	queue_enq (cam->captured_queue, frame_data);
+	cap_y = (unsigned long) frame_data;
+	cap_c = cap_y + (cam->cap_w * cam->cap_h);
+
+	for (i=0; i < pvt->nr_encoders; i++) {
+		if (pvt->encdata[i].camera != cam) continue;
+
+		encdata = &pvt->encdata[i];
+
+		if (encdata->skipcount == 0) {
+		/* Get an empty encoder input frame */
+		enc_y = (unsigned long) queue_deq(encdata->enc_input_empty_q);
+		enc_c = enc_y + (encdata->enc_w * encdata->enc_h);
+
+		/* We are clipping, not scaling, as we need to perform a rotation,
+	   	but the VEU cannot do a rotate & scale at the same time. */
+		shveu_crop(pvt->veu, 1, 0, 0, encdata->enc_w, encdata->enc_h);
+		shveu_rescale(pvt->veu,
+			cap_y, cap_c,
+			cam->cap_w, cam->cap_h, V4L2_PIX_FMT_NV12,
+			enc_y, enc_c,
+			encdata->enc_w, encdata->enc_h, V4L2_PIX_FMT_NV12);
+
+		queue_enq(encdata->enc_input_q, (void*)enc_y);
+		}
+
+		encdata->skipcount++;
+		encdata->skipcount %= encdata->skipsize;
+	}
+
+	if (cam == pvt->encdata[0].camera && pvt->do_preview) {
+		/* Use the VEU to scale the capture buffer to the frame buffer */
+		display_update(pvt->display,
+				cap_y, cap_c,
+				cam->cap_w, cam->cap_h, cam->cap_w,
+				V4L2_PIX_FMT_NV12);
+	}
+
+	capture_queue_buffer (cam->ceu, (void *)cap_y);
+
 	cam->captured_frames++;
 }
 
@@ -174,78 +223,38 @@ void *capture_main(void *data)
 	struct camera_data *cam = (struct camera_data*)data;
 
 	while(alive){
-		framerate_wait(cam->cap_framerate);
 		capture_get_frame(cam->ceu, capture_image_cb, cam);
-
-		/* This mutex is unlocked once the capture buffer is free */
-		pthread_mutex_lock(&cam->capture_start_mutex);
 	}
 
 	capture_stop_capturing(cam->ceu);
-
-	pthread_mutex_unlock(&cam->capture_start_mutex);
 
 	return NULL;
 }
 
 
-void *convert_main(void *data)
+/* SHCodecs_Encoder_Input_Release callback */
+static int release_input_buf(SHCodecs_Encoder * encoder,
+                             unsigned char * y_input,
+                             unsigned char * c_input,
+                             void * user_data)
 {
-	struct camera_data *cam = (struct camera_data*)data;
-	struct private_data *pvt = &pvt_data;
-	int pitch, offset;
-	void *ptr;
-	unsigned long enc_y, enc_c;
-	unsigned long cap_y, cap_c;
-	int i;
+	struct encode_data *encdata = (struct encode_data*)user_data;
 
-	while(alive){
-		cap_y = (unsigned long) queue_deq(cam->captured_queue);
-		cap_c = cap_y + (cam->cap_w * cam->cap_h);
+	queue_enq (encdata->enc_input_empty_q, y_input);
 
-		for (i=0; i < pvt->nr_encoders; i++) {
-			if (pvt->encdata[i].camera != cam) continue;
-
-			shcodecs_encoder_get_input_physical_addr (pvt->encoders[i], (unsigned int *)&enc_y, (unsigned int *)&enc_c);
-
-			/* We are clipping, not scaling, as we need to perform a rotation,
-		   	but the VEU cannot do a rotate & scale at the same time. */
-			shveu_crop(pvt->veu, 1, 0, 0, pvt->encdata[i].enc_w, pvt->encdata[i].enc_h);
-			shveu_rescale(pvt->veu,
-  				cap_y, cap_c,
-				cam->cap_w, cam->cap_h, V4L2_PIX_FMT_NV12,
-				enc_y, enc_c,
-				pvt->encdata[i].enc_w, pvt->encdata[i].enc_h, V4L2_PIX_FMT_NV12);
-
-			/* Let the encoder get_input function return */
-			pthread_mutex_unlock(&pvt->encdata[i].encode_start_mutex);
-		}
-
-		if (cam == pvt->encdata[0].camera && pvt->do_preview) {
-			/* Use the VEU to scale the capture buffer to the frame buffer */
-			display_update(pvt->display,
-					cap_y, cap_c,
-					cam->cap_w, cam->cap_h, cam->cap_w,
-					V4L2_PIX_FMT_NV12);
-		}
-
-		capture_queue_buffer (cam->ceu, cap_y);
-		pthread_mutex_unlock(&cam->capture_start_mutex);
-
-		pvt->output_frames++;
-	}
-
-	return NULL;
+	return 0;
 }
 
 /* SHCodecs_Encoder_Input callback for acquiring an image */
 static int get_input(SHCodecs_Encoder *encoder, void *user_data)
 {
 	struct encode_data *encdata = (struct encode_data*)user_data;
+	unsigned long enc_y, enc_c;
 
-	/* This mutex is unlocked once the capture buffer has been copied to the
-	   encoder input buffer */
-	pthread_mutex_lock(&encdata->encode_start_mutex);
+	/* Get a scaled frame from the queue */
+	enc_y = (unsigned long) queue_deq(encdata->enc_input_q);
+	enc_c = enc_y + (encdata->enc_w * encdata->enc_h);
+	shcodecs_encoder_set_input_physical_addr (encoder, enc_y, enc_c);
 
 	if (encdata->enc_framerate == NULL) {
 		encdata->enc_framerate = framerate_new_measurer ();
@@ -259,7 +268,6 @@ static int write_output(SHCodecs_Encoder *encoder,
 			unsigned char *data, int length, void *user_data)
 {
 	struct encode_data *encdata = (struct encode_data*)user_data;
-	double ifps, mfps;
 
 	if (shcodecs_encoder_get_frame_num_delta(encoder) > 0 &&
 			encdata->enc_framerate != NULL) {
@@ -267,11 +275,8 @@ static int write_output(SHCodecs_Encoder *encoder,
 				encdata->ainfo.frames_to_encode > 0)
 			return 1;
 		framerate_mark (encdata->enc_framerate);
-		ifps = framerate_instantaneous_fps (encdata->enc_framerate);
-		mfps = framerate_mean_fps (encdata->enc_framerate);
-		if (encdata->enc_framerate->nr_handled % 10 == 0) {
-			fprintf (stderr, "  Encoding @ %4.2f fps \t(avg %4.2f fps)\r", ifps, mfps);
-		}
+		encdata->ifps = framerate_instantaneous_fps (encdata->enc_framerate);
+		encdata->mfps = framerate_mean_fps (encdata->enc_framerate);
 	}
 
 	if (fwrite(data, 1, length, encdata->output_fp) < (size_t)length)
@@ -285,25 +290,6 @@ void cleanup (void)
 	double time;
 	struct private_data *pvt = &pvt_data;
 	int i;
-
-	for (i=0; i < pvt->nr_cameras; i++) {
-		struct camera_data * cam = &pvt->cameras[i];
-
-		time = (double)framerate_elapsed_time (cam->cap_framerate);
-		time /= 1000000;
-
-		debug_printf ("\n");
-		debug_printf("Elapsed time (capture): %0.3g s\n", time);
-
-		debug_printf("Captured %d frames (%.2f fps)\n", cam->captured_frames,
-			 	(double)cam->captured_frames/time);
-		if (pvt->do_preview) {
-			debug_printf("Displayed %d frames (%.2f fps)\n", pvt->output_frames,
-					(double)pvt->output_frames/time);
-		}
-
-		framerate_destroy (cam->cap_framerate);
-	}
 
 	for (i=0; i < pvt->nr_encoders; i++) {
 		time = (double)framerate_elapsed_time (pvt->encdata[i].enc_framerate);
@@ -324,7 +310,6 @@ void cleanup (void)
 	for (i=0; i < pvt->nr_cameras; i++) {
 		struct camera_data * cam = &pvt->cameras[i];
 
-		pthread_join (cam->convert_thread, NULL);
 		pthread_join (cam->capture_thread, NULL);
 
 		capture_close(cam->ceu);
@@ -336,13 +321,6 @@ void cleanup (void)
 
 	for (i=0; i < pvt->nr_encoders; i++) {
 		close_output_file(pvt->encdata[i].output_fp);
-		pthread_mutex_unlock(&pvt->encdata[i].encode_start_mutex);
-		pthread_mutex_destroy (&pvt->encdata[i].encode_start_mutex);
-	}
-
-	for (i=0; i < pvt->nr_cameras; i++) {
-		struct camera_data * cam = &pvt->cameras[i];
-		pthread_mutex_destroy (&cam->capture_start_mutex);
 	}
 
 	uiomux_close (pvt->uiomux);
@@ -382,10 +360,21 @@ struct camera_data * get_camera (char * devicename, int width, int height)
 	return &pvt->cameras[i];
 }
 
+void * encode_main (void * data)
+{
+	SHCodecs_Encoder * encoder = (SHCodecs_Encoder *)data;
+	int ret = -1;
+
+	ret = shcodecs_encoder_run (encoder);
+
+	return (void *)ret;
+}
+
 int main(int argc, char *argv[])
 {
 	struct private_data *pvt;
 	int return_code, rc;
+	void *thread_ret;
 	unsigned int pixel_format;
 	int c, i=0;
 	long target_fps10;
@@ -408,7 +397,6 @@ int main(int argc, char *argv[])
 
 	pvt->do_preview = 1;
 
-	pvt->output_frames = 0;
 	pvt->rotate_cap = SHVEU_NO_ROT;
 
 	while (1) {
@@ -492,26 +480,12 @@ int main(int argc, char *argv[])
 		debug_printf("[%d] Input file: %s\n", i, pvt->encdata[i].ainfo.input_file_name_buf);
 		debug_printf("[%d] Output file: %s\n", i, pvt->encdata[i].ainfo.output_file_name_buf);
 
-		pthread_mutex_init(&pvt->encdata[i].encode_start_mutex, NULL);
-		pthread_mutex_unlock(&pvt->encdata[i].encode_start_mutex);
+		/* Initialize the queues */
+		pvt->encdata[i].enc_input_q = queue_init();
+		pvt->encdata[i].enc_input_empty_q = queue_init();
 	}
 
 	for (i=0; i < pvt->nr_cameras; i++) {
-		/* Initalise the mutexes */
-		pthread_mutex_init(&pvt->cameras[i].capture_start_mutex, NULL);
-		pthread_mutex_lock(&pvt->cameras[i].capture_start_mutex);
-
-		/* Initialize the queues */
-		pvt->cameras[i].captured_queue = queue_init();
-		queue_limit (pvt->cameras[i].captured_queue, 2);
-
-		/* Create the threads */
-		rc = pthread_create(&pvt->cameras[i].convert_thread, NULL, convert_main, &pvt->cameras[i]);
-		if (rc) {
-			fprintf(stderr, "pthread_create failed, exiting\n");
-			return -7;
-		}
-
 		/* Camera capture initialisation */
 		pvt->cameras[i].ceu = capture_open_userio(pvt->cameras[i].devicename, pvt->cameras[i].cap_w, pvt->cameras[i].cap_h, pvt->uiomux);
 		if (pvt->cameras[i].ceu == NULL) {
@@ -545,6 +519,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	fprintf (stderr, "Target   @");
 	for (i=0; i < pvt->nr_encoders; i++) {
 #if 0
 		if (pvt->rotate_cap == SHVEU_NO_ROT) {
@@ -584,6 +559,7 @@ int main(int argc, char *argv[])
 		}
 		shcodecs_encoder_set_input_callback(pvt->encoders[i], get_input, &pvt->encdata[i]);
 		shcodecs_encoder_set_output_callback(pvt->encoders[i], write_output, &pvt->encdata[i]);
+		shcodecs_encoder_set_input_release_callback(pvt->encoders[i], release_input_buf, &pvt->encdata[i]);
 
 		return_code = ctrlfile_set_enc_param(pvt->encoders[i], pvt->encdata[i].ctrl_filename);
 		if (return_code < 0) {
@@ -593,16 +569,19 @@ int main(int argc, char *argv[])
 
 		//shcodecs_encoder_set_xpic_size(pvt->encoders[i], pvt->encdata[i].enc_w);
 		//shcodecs_encoder_set_ypic_size(pvt->encoders[i], pvt->encdata[i].enc_h);
-	}
 
-	/* Set up the frame rate timer to match the encode framerate */
-	target_fps10 = shcodecs_encoder_get_frame_rate(pvt->encoders[0]);
-	fprintf (stderr, "Target framerate:   %.1f fps\n", target_fps10 / 10.0);
+		target_fps10 = shcodecs_encoder_get_frame_rate(pvt->encoders[i]);
+		fprintf (stderr, "\t%4.2f  ", target_fps10/10.0);
+
+		pvt->encdata[i].skipsize = 300 / target_fps10;
+		pvt->encdata[i].skipcount = 0;
+
+		pvt->encdata[i].ifps = 0;
+		pvt->encdata[i].mfps = 0;
+	}
+	fprintf (stderr, "\tFPS\n");
 
 	for (i=0; i < pvt->nr_cameras; i++) {
-		/* Initialize framerate timer */
-		pvt->cameras[i].cap_framerate = framerate_new_timer (target_fps10 / 10.0);
-
 		capture_start_capturing(pvt->cameras[i].ceu);
 
 		rc = pthread_create(&pvt->cameras[i].capture_thread, NULL, capture_main, &pvt->cameras[i]);
@@ -612,13 +591,41 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	rc = shcodecs_encoder_run_multiple(pvt->encoders, pvt->nr_encoders);
-	if (rc < 0) {
-		fprintf(stderr, "Error encoding, error code=%d\n", rc);
-		rc = -10;
+	for (i=0; i < pvt->nr_encoders; i++) {
+		rc = pthread_create (&pvt->encdata[i].thread, NULL, encode_main, pvt->encoders[i]);
+		if (rc)
+			fprintf (stderr, "Thread %d failed: %s\n", i, strerror(rc));
 	}
-	/* Exit ok if shcodecs_encoder_run was stopped cleanly */
-	if (rc == 1) rc = 0;
+
+	while (alive) {
+		fprintf (stderr, "Encoding @");
+		for (i=0; i < pvt->nr_encoders; i++) {
+			fprintf (stderr, "\t%4.2f  ", pvt->encdata[i].ifps);
+		}
+		fprintf (stderr, "\tFPS\r");
+		usleep (300000);
+	}
+
+	fprintf (stderr, "\nEncoded  @");
+	for (i=0; i < pvt->nr_encoders; i++) {
+		fprintf (stderr, "\t%4.2f  ", pvt->encdata[i].mfps);
+	}
+	fprintf (stderr, "\tFPS\n");
+
+	fprintf (stderr, "Status   :");
+	rc = 0;
+	for (i=0; i < pvt->nr_encoders; i++) {
+		if (pvt->encdata[i].thread != 0) {
+			pthread_join (pvt->encdata[i].thread, &thread_ret);
+			if ((int)thread_ret < 0) {
+				rc = (int)thread_ret;
+				fprintf (stderr, "\tErr %d", i);
+			} else {
+				fprintf (stderr, "\tOK");
+			}
+		}
+	}
+	fprintf (stderr, "\n");
 
 	cleanup ();
 
