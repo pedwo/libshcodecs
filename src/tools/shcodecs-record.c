@@ -311,17 +311,8 @@ int cleanup (void)
 	void *thread_ret;
 	int rc;
 
-	for (i=0; i < pvt->nr_encoders; i++) {
-		time = (double)framerate_elapsed_time (pvt->encdata[i].enc_framerate);
-		time /= 1000000;
-
-		debug_printf("[%d] Elapsed time (encode): %0.3g s\n", i, time);
-		debug_printf("[%d] Encoded %d frames (%.2f fps)\n", i,
-				pvt->encdata[i].enc_framerate->nr_handled,
-			 	framerate_mean_fps (pvt->encdata[i].enc_framerate));
-	}
-
 	alive=0;
+	usleep (300000);
 
 	for (i=0; i < pvt->nr_cameras; i++) {
 		if (pvt->cameras[i].capture_thread != 0) {
@@ -329,6 +320,22 @@ int cleanup (void)
 			capture_close(pvt->cameras[i].ceu);
 		}
 	}
+
+	/* Display number of frames encoded */
+	fprintf (stderr, "Encoded  :");
+	for (i=0; i < pvt->nr_encoders; i++) {
+		fprintf (stderr, "\t%-6d ", pvt->encdata[i].enc_framerate->nr_handled);
+	}
+	fprintf (stderr, "\tframes\n");
+
+	/* Display mean frame rate */
+	fprintf (stderr, "Encoded  @");
+	for (i=0; i < pvt->nr_encoders; i++) {
+		fprintf (stderr, "\t%4.2f  ", pvt->encdata[i].mfps);
+	}
+	fprintf (stderr, "\tFPS\n");
+
+
 	fprintf (stderr, "Status   :");
 	for (i=0; i < pvt->nr_encoders; i++) {
 		if (pvt->encdata[i].thread != 0) {
@@ -643,12 +650,6 @@ int main(int argc, char *argv[])
 		fprintf (stderr, "\tFPS\r");
 		usleep (300000);
 	}
-
-	fprintf (stderr, "\nEncoded  @");
-	for (i=0; i < pvt->nr_encoders; i++) {
-		fprintf (stderr, "\t%4.2f  ", pvt->encdata[i].mfps);
-	}
-	fprintf (stderr, "\tFPS\n");
 
 	rc = cleanup ();
 
