@@ -72,6 +72,7 @@ struct camera_data {
 	int captured_frames;
 
 	pthread_t capture_thread;
+	int running;
 
 	struct Queue * captured_queue;
 	pthread_mutex_t capture_start_mutex;
@@ -79,6 +80,7 @@ struct camera_data {
 
 struct encode_data {
 	pthread_t thread;
+	int running;
 
 	char ctrl_filename[MAXPATHLEN];
 	APPLI_INFO ainfo;
@@ -175,6 +177,8 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 	unsigned long cap_y, cap_c;
 	int i;
 
+	cam->running = alive;
+
 	cap_y = (unsigned long) frame_data;
 	cap_c = cap_y + (cam->cap_w * cam->cap_h);
 
@@ -198,6 +202,8 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 			encdata->enc_w, encdata->enc_h, encdata->enc_w, SHVEU_YCbCr420,
 			pvt->rotate_cap);
 		uiomux_unlock (pvt->uiomux, UIOMUX_SH_VEU);
+
+		encdata->running = cam->running;
 
 		queue_enq(encdata->enc_input_q, (void*)enc_y);
 		}
@@ -225,7 +231,7 @@ void *capture_main(void *data)
 {
 	struct camera_data *cam = (struct camera_data*)data;
 
-	while(alive){
+	while(cam->running){
 		capture_get_frame(cam->ceu, capture_image_cb, cam);
 	}
 
@@ -263,7 +269,7 @@ static int get_input(SHCodecs_Encoder *encoder, void *user_data)
 		encdata->enc_framerate = framerate_new_measurer ();
 	}
 
-	return (alive?0:1);
+	return (encdata->running?0:1);
 }
 
 /* SHCodecs_Encoder_Output callback for writing out the encoded data */
@@ -285,14 +291,16 @@ static int write_output(SHCodecs_Encoder *encoder,
 	if (fwrite(data, 1, length, encdata->output_fp) < (size_t)length)
 		return -1;
 
-	return (alive?0:1);
+	return (encdata->running?0:1);
 }
 
-void cleanup (void)
+int cleanup (void)
 {
 	double time;
 	struct private_data *pvt = &pvt_data;
 	int i;
+	void *thread_ret;
+	int rc;
 
 	for (i=0; i < pvt->nr_encoders; i++) {
 		time = (double)framerate_elapsed_time (pvt->encdata[i].enc_framerate);
@@ -302,31 +310,40 @@ void cleanup (void)
 		debug_printf("[%d] Encoded %d frames (%.2f fps)\n", i,
 				pvt->encdata[i].enc_framerate->nr_handled,
 			 	framerate_mean_fps (pvt->encdata[i].enc_framerate));
-
-		shcodecs_encoder_close(pvt->encoders[i]);
-
-		framerate_destroy (pvt->encdata[i].enc_framerate);
 	}
 
 	alive=0;
 
 	for (i=0; i < pvt->nr_cameras; i++) {
-		struct camera_data * cam = &pvt->cameras[i];
-
-		pthread_join (cam->capture_thread, NULL);
-
-		capture_close(cam->ceu);
+		if (pvt->cameras[i].capture_thread != 0) {
+			pthread_join (pvt->cameras[i].capture_thread, &thread_ret);
+			capture_close(pvt->cameras[i].ceu);
+		}
 	}
+	fprintf (stderr, "Status   :");
+	for (i=0; i < pvt->nr_encoders; i++) {
+		if (pvt->encdata[i].thread != 0) {
+			pthread_join (pvt->encdata[i].thread, &thread_ret);
+			if ((int)thread_ret < 0) {
+				rc = (int)thread_ret;
+				fprintf (stderr, "\tErr %d", i);
+			} else {
+				fprintf (stderr, "\tOK");
+			}
+		}
+		shcodecs_encoder_close(pvt->encoders[i]);
+		close_output_file(pvt->encdata[i].output_fp);
+		framerate_destroy (pvt->encdata[i].enc_framerate);
+	}
+	fprintf (stderr, "\n");
 
 	if (pvt->do_preview)
 		display_close(pvt->display);
 	shveu_close();
 
-	for (i=0; i < pvt->nr_encoders; i++) {
-		close_output_file(pvt->encdata[i].output_fp);
-	}
-
 	uiomux_close (pvt->uiomux);
+
+	return (int)thread_ret;
 }
 
 void sig_handler(int sig)
@@ -594,6 +611,7 @@ int main(int argc, char *argv[])
 	for (i=0; i < pvt->nr_cameras; i++) {
 		capture_start_capturing(pvt->cameras[i].ceu);
 
+		pvt->cameras[i].running = 1;
 		rc = pthread_create(&pvt->cameras[i].capture_thread, NULL, capture_main, &pvt->cameras[i]);
 		if (rc){
 			fprintf(stderr, "pthread_create failed, exiting\n");
@@ -602,6 +620,7 @@ int main(int argc, char *argv[])
 	}
 
 	for (i=0; i < pvt->nr_encoders; i++) {
+		pvt->encdata[i].running = 1;
 		rc = pthread_create (&pvt->encdata[i].thread, NULL, encode_main, pvt->encoders[i]);
 		if (rc)
 			fprintf (stderr, "Thread %d failed: %s\n", i, strerror(rc));
@@ -622,22 +641,7 @@ int main(int argc, char *argv[])
 	}
 	fprintf (stderr, "\tFPS\n");
 
-	fprintf (stderr, "Status   :");
-	rc = 0;
-	for (i=0; i < pvt->nr_encoders; i++) {
-		if (pvt->encdata[i].thread != 0) {
-			pthread_join (pvt->encdata[i].thread, &thread_ret);
-			if ((int)thread_ret < 0) {
-				rc = (int)thread_ret;
-				fprintf (stderr, "\tErr %d", i);
-			} else {
-				fprintf (stderr, "\tOK");
-			}
-		}
-	}
-	fprintf (stderr, "\n");
-
-	cleanup ();
+	rc = cleanup ();
 
 	return rc;
 
