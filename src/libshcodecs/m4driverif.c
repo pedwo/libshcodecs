@@ -87,7 +87,7 @@ int m4iph_vpu_open(int stream_buf_size)
 	}
 
 	/* Note: This must be done outside vpu lock as UIOMux malloc also locks the vpu */
-	if (vpu->work_buff_size < stream_buf_size) {
+	if (vpu->work_buff_size < (unsigned long)stream_buf_size) {
 		vpu->work_buff_size = stream_buf_size;
 		vpu->work_buff = m4iph_sdr_malloc(stream_buf_size, 32);
 		if (!vpu->work_buff) {

@@ -269,7 +269,7 @@ static int get_input(SHCodecs_Encoder *encoder, void *user_data)
 	/* Get a scaled frame from the queue */
 	enc_y = (unsigned long) queue_deq(encdata->enc_input_q);
 	enc_c = enc_y + (encdata->enc_w * encdata->enc_h);
-	shcodecs_encoder_set_input_physical_addr (encoder, enc_y, enc_c);
+	shcodecs_encoder_set_input_physical_addr (encoder, (unsigned int *)enc_y, (unsigned int *)enc_c);
 
 	if (encdata->enc_framerate == NULL) {
 		encdata->enc_framerate = framerate_new_measurer ();
