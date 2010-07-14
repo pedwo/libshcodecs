@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <uiomux/uiomux.h>
 #include <m4iph_vpu4.h>
 #include <avcbd.h>
@@ -53,19 +54,14 @@ typedef struct _SHCodecs_vpu {
 
 static SHCodecs_vpu vpu_data;
 static int vpu_initialised = 0;
-static int vpu_init_started = 0;
-
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int m4iph_vpu_open(int stream_buf_size)
 {
 	SHCodecs_vpu *vpu = &vpu_data;
 	int ret = 0;
 
-	if (vpu_init_started)
-		while (!vpu_initialised)
-			usleep(1000);
-
-	vpu_init_started = 1;
+	pthread_mutex_lock(&mutex);
 
 	if (!vpu_initialised) {
 
@@ -74,30 +70,23 @@ int m4iph_vpu_open(int stream_buf_size)
 
 		vpu->uiomux = uiomux_open();
 		if (!vpu->uiomux)
-			return -1;
+			goto err;
 
 		ret = uiomux_get_mmio (vpu->uiomux, UIOMUX_SH_VPU,
 			&vpu->uio_mmio.address,
 			&vpu->uio_mmio.size,
 			&vpu->uio_mmio.iomem);
-		if (!ret) {
-			uiomux_close(vpu->uiomux);
-			return -1;
-		}
+		if (!ret)
+			goto err;
 	}
 
 	/* Note: This must be done outside vpu lock as UIOMux malloc also locks the vpu */
 	if (vpu->work_buff_size < (unsigned long)stream_buf_size) {
 		vpu->work_buff_size = stream_buf_size;
 		vpu->work_buff = m4iph_sdr_malloc(stream_buf_size, 32);
-		if (!vpu->work_buff) {
-			uiomux_close(vpu->uiomux);
-			return -1;
-		}
+		if (!vpu->work_buff)
+			goto err;
 	}
-
-
-	m4iph_vpu_lock();
 
 	vpu->num_codecs++;
 
@@ -119,21 +108,35 @@ int m4iph_vpu_open(int stream_buf_size)
 	vpu->params.m4iph_temporary_buff_size = vpu->work_buff_size;
 
 	/* Initialize VPU */
+	m4iph_vpu_lock();
 	ret = m4iph_vpu4_init(&vpu->params);
-
 	m4iph_vpu_unlock();
 
 	vpu_initialised = 1;
+
+	pthread_mutex_unlock(&mutex);
 	return ret;
+
+err:
+	if (vpu->uiomux)
+		uiomux_close(vpu->uiomux);
+	vpu->uiomux = NULL;
+	vpu_initialised = 0;
+	pthread_mutex_unlock(&mutex);
+	return -1;
 }
 
 void m4iph_vpu_close(void)
 {
 	SHCodecs_vpu *vpu = &vpu_data;
 
+	pthread_mutex_lock(&mutex);
 	if (--vpu->num_codecs == 0) {
 		uiomux_close(vpu->uiomux);
+		vpu->uiomux = NULL;
+		vpu_initialised = 0;
 	}
+	pthread_mutex_unlock(&mutex);
 }
 
 void m4iph_vpu_lock(void)
