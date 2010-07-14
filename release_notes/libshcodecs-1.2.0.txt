@@ -1,0 +1,115 @@
+libshcodecs 1.2.0 Release
+=========================
+
+libshcodecs is a library for controlling SH-Mobile hardware codecs.
+
+The [SH-Mobile][0] processor series includes a hardware video processing
+unit that supports MPEG-4 and H.264 encoding and decoding.
+libshcodecs is available under the terms of the GNU LGPL.
+
+The source archive, and more information about the library are available from:
+
+	https://oss.renesas.com/modules/document/?libshcodecs
+
+New in this release
+===================
+
+The major change for this release is that the UIO kernel memory is now mapped
+using the UIOmux library. This provides a standard mechanism for accessing
+contiguous blocks of memory that can be used by the SH hardware.
+
+The API has changed subtly in that the encoder input buffer release callback
+is now called for all internally allocated input buffers before encoding the
+first frame.
+
+Details
+-------
+
+This release includes the following changes since version 1.1.1:
+
+Conrad Parker (13):
+      shcodecs-record: clean up size/target fps display
+      TODO: clear encode frame data on init
+      shcodecs-record: show fps of all streams in columns
+      shcodecs-record: run encoders in separate threads
+      shcodecs-record: add frame dropping at enc input
+      shcodecs-record: remove cap_framerate wait timer
+      rename 1.1.0 release notes
+      TODO: add doc updates for input_release()
+      add shcodecs_encoder_set_allocate_input_buffers()
+      Merge branch 'set-input-physical-addr' into request-release
+      call input_release from H.264, MPEG-4, MP4 BVOP
+      add type and setter for input_release callback
+      add shcodecs_encoder_set_input_physical_addr()
+
+Phil Edworthy (32):
+      autotools: Removed autogen.sh; use autoreconf.
+      Merge branch 'shveu2'
+      tools: Improve shcodecs-record encode information.
+      tools: Fix clean shutdown fo different frame rates
+      tools: Fix segfault on record shutdown
+      Merge remote branch 'kfish/master'
+      Merge branch 'master' into shveu2
+      autotools: Remove generated files
+      autotools: Remove AC_CANONICAL_TARGET
+      autotools: Fix for autoreconf
+      autotools: Further clean up
+      Simplify the check for UIOmux library.
+      Merge branch 'request-release'
+      Merge branch 'lowfps2'
+      tools: Reduce num capture bufs back to 2.
+      dec: Add debug msgs for VPU errors
+      dec: Allocate contiguous memory for frames.
+      encdec: New encode/decode tool added.
+      Merge branch 'uiomux'
+      enc: Fix bug in re-using local var.
+      enc: Merged double-buffer branch.
+      record: Removed captured queue as its no longer used.
+      record: Remove output of displayed frames.
+      record: Use queues for encoder input.
+      record: Move the convert processing into camera capture callback.
+      capenc: #define the number of capture buffers
+      Use UIOMux for base address of VPU registers.
+      Fix UIOMux initialisation for multiple instances.
+      Use UIOMux for all UIO memory operations.
+      Use UIOMux locking instead of local mutex.
+      Use UIOMux to find UIO device and memory.
+      tools: Modified to new shveu API.
+
+ INSTALL                             |  236 -----------
+ Makefile.am                         |    2 +
+ TODO                                |   19 +-
+ autogen.sh                          |  129 ------
+ config.h.in                         |   99 -----
+ configure.ac                        |   66 +---
+ include/shcodecs/shcodecs_encoder.h |   16 +
+ release_notes/libshcodecs-1.1.0     |  278 -------------
+ release_notes/libshcodecs-1.1.0.txt |  278 +++++++++++++
+ src/libshcodecs/Makefile.am         |    2 +-
+ src/libshcodecs/Version_script.in   |    1 +
+ src/libshcodecs/encoder_private.h   |    1 +
+ src/libshcodecs/h264_encode.c       |   23 +-
+ src/libshcodecs/m4driverif.c        |  498 +++++++-----------------
+ src/libshcodecs/m4driverif.h        |    4 +-
+ src/libshcodecs/mpeg4_encode.c      |   86 +++--
+ src/libshcodecs/shcodecs_decoder.c  |  156 ++++----
+ src/libshcodecs/shcodecs_encoder.c  |   32 ++-
+ src/tools/Makefile.am               |   11 +-
+ src/tools/capture.c                 |   10 +-
+ src/tools/capture.h                 |    2 +
+ src/tools/display.c                 |  252 ++++++-------
+ src/tools/display.h                 |   92 +++--
+ src/tools/shcodecs-cap.c            |    6 -
+ src/tools/shcodecs-encdec.c         |  741 +++++++++++++++++++++++++++++++++++
+ src/tools/shcodecs-play.c           |   17 +-
+ src/tools/shcodecs-record.c         |  332 +++++++++--------
+ 27 files changed, 1743 insertions(+), 1646 deletions(-)
+ delete mode 100644 INSTALL
+ delete mode 100755 autogen.sh
+ delete mode 100644 config.h.in
+ delete mode 100644 release_notes/libshcodecs-1.1.0
+ create mode 100644 release_notes/libshcodecs-1.1.0.txt
+ create mode 100644 src/tools/shcodecs-encdec.c
+
+[0]: http://www.renesas.com/fmwk.jsp?cnt=sh_mobile_family_landing.jsp&fp=/products/mpumcu/sh_mobile/
+

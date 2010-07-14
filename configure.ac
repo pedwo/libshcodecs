@@ -23,7 +23,7 @@ AC_CONFIG_SRCDIR([src/libshcodecs/shcodecs_decoder.c])
 
 AC_PREREQ(2.53)
 
-AM_INIT_AUTOMAKE(libshcodecs, 1.1.1)
+AM_INIT_AUTOMAKE(libshcodecs, 1.2.0)
 AM_CONFIG_HEADER(config.h)
 
 ################################################################################
@@ -43,7 +43,7 @@ AM_CONFIG_HEADER(config.h)
 #     then set AGE to 0.                                                       #
 #                                                                              #
 ################################################################################
-SHARED_VERSION_INFO="9:0:2"
+SHARED_VERSION_INFO="10:0:2"
 SHLIB_VERSION_ARG=""
 
 # Checks for programs.
@@ -127,26 +127,7 @@ PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.1.0)
 dnl
 dnl Check for libshveu
 dnl
-
-HAVE_SHVEU=no
-SHVEU_SUPPORT=no
-
-ac_enable_shveu=yes
-AC_ARG_ENABLE(shveu,
-  AC_HELP_STRING([--disable-shveu], [disable building of libshveu support]),
-  [ ac_enable_shveu=no ], [ ac_enable_shveu=yes ])
-
-if test "x${ac_enable_shveu}" = xyes ; then
-  PKG_CHECK_MODULES(SHVEU, shveu, HAVE_SHVEU=yes, HAVE_SHVEU=no)
-
-  if test "x$HAVE_SHVEU" = "xyes" ; then
-    AC_DEFINE(HAVE_SHVEU, [1], [Define to 1 if you have libshveu])
-    SHVEU_SUPPORT="yes"
-  fi
-else
-  SHVEU_SUPPORT="disabled"
-fi
-AM_CONDITIONAL(HAVE_SHVEU, [test "x$HAVE_SHVEU" = "xyes"])
+PKG_CHECK_MODULES(SHVEU, shveu >= 1.4.0)
 
 
 # check for getopt in a separate library
