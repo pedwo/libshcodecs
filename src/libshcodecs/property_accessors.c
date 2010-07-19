@@ -24,6 +24,7 @@
 #include <stdlib.h>
 
 #include "encoder_private.h"
+#include "../../include/shcodecs/encode_properties.h"
 
 /**
 * Get the stream_type.
@@ -198,8 +199,7 @@ shcodecs_encoder_set_frame_rate(SHCodecs_Encoder * encoder,
 	old_value = encoder->encoding_property.avcbe_frame_rate;
 	encoder->encoding_property.avcbe_frame_rate = frame_rate;
 
-
-	
+	shcodecs_encoder_set_h264_sps_frame_rate_info(encoder, frame_rate, 10);
 
 	return old_value;
 }
@@ -241,15 +241,16 @@ shcodecs_encoder_set_h264_sps_frame_rate_info(SHCodecs_Encoder * encoder,
 
 	if (encoder->format == SHCodecs_Format_H264){
 
-	    if (encoder->other_options_h264.avcbe_out_vui_parameters == 1){
-	      old_value = encoder->other_API_enc_param.vui_main_param.avcbe_time_scale / encoder->other_API_enc_param.vui_main_param.avcbe_num_units_in_tick;
-	      /* for RTP streaming we need the VUI parameters in the SPS NAL for framerate info*/
-	      /* we need to set out_vui_parameters = 1 in the ctl file */
-	      encoder->other_API_enc_param.vui_main_param.avcbe_num_units_in_tick = frame_rate_denominator;
-	      encoder->other_API_enc_param.vui_main_param.avcbe_timing_info_present_flag = 1;
-	      encoder->other_API_enc_param.vui_main_param.avcbe_time_scale = frame_rate_numerator;
-	    }
-          }
+		/* Set the VUI data, but this will only be output if the encoder
+		   control file has out_vui_parameters=1 */
+		old_value = encoder->other_API_enc_param.vui_main_param.avcbe_time_scale / encoder->other_API_enc_param.vui_main_param.avcbe_num_units_in_tick;
+
+		/* pic_struct_present_flag=0 and field_pic_flag=0, so DeltaTfiDivisor=2.
+		   See ITU H.264 spec Table E-6 Divisor for computation of ... */
+		encoder->other_API_enc_param.vui_main_param.avcbe_timing_info_present_flag = 1;
+		encoder->other_API_enc_param.vui_main_param.avcbe_time_scale = frame_rate_numerator * 2;
+		encoder->other_API_enc_param.vui_main_param.avcbe_num_units_in_tick = frame_rate_denominator;
+	}
 
 	return old_value;
 }

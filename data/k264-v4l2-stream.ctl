@@ -91,6 +91,6 @@ profile                                            = 66;
 constraint_set_flag                                = 0;
 level_type                                         = 1;
 level_value                                        = 10;
-out_vui_parameters                                 = 0;
+out_vui_parameters                                 = 1;
 chroma_qp_index_offset                             = 0;
 constrained_intra_pred                             = 0;
