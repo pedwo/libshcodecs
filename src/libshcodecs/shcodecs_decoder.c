@@ -365,7 +365,7 @@ static int decoder_init(SHCodecs_Decoder * decoder)
 #endif
 	}
 
-	decoder->num_frames = 0;
+	decoder->frame_count = 0;
 	return 0;
 err:
 	return -1;
@@ -385,7 +385,7 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 
 		if (decode_frame(decoder) < 0) {
 #ifdef DEBUG
-			fprintf(stderr, "decoder_start:: %d frames decoded\n", decoder->num_frames);
+			fprintf(stderr, "decoder_start:: %d frames decoded\n", decoder->frame_count);
 #endif
 
 			if (!decoder->needs_finalization) {
@@ -419,7 +419,7 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 		}
 
 #ifdef DEBUG
-		fprintf(stderr, "%16d,dpb_mode=%d\n", decoder->num_frames++, dpb_mode);
+		fprintf(stderr, "%16d,dpb_mode=%d\n", decoder->frame_count, dpb_mode);
 #endif
 	} while (decoded && cb_ret == 0);
 
