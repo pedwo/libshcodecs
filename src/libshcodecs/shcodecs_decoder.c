@@ -92,14 +92,14 @@ SHCodecs_Decoder *shcodecs_decoder_init(int width, int height, SHCodecs_Format f
 	decoder->frame_count = 0;
 	decoder->last_cb_ret = 0;
 
-        /* H.264 spec: Max NAL size is the size of an uncomrpessed immage divided
-           by the "Minimum Compression Ratio", MinCR. This is 2 for most levels
-           but is 4 for levels 3.1 to 4. Since we don't know the level, we use
-           MinCR=2 for sizes upto D1 and MinCR=4 for over D1. */
-        decoder->max_nal_size = (width * height * 3) / 2; /* YCbCr420 */
-        decoder->max_nal_size /= 2; /* Apply MinCR */
-        if (width*height > 720*576)
-                decoder->max_nal_size /= 2; /* Apply MinCR */
+	/* H.264 spec: Max NAL size is the size of an uncomrpessed immage divided
+	   by the "Minimum Compression Ratio", MinCR. This is 2 for most levels
+	   but is 4 for levels 3.1 to 4. Since we don't know the level, we use
+	   MinCR=2 for sizes upto D1 and MinCR=4 for over D1. */
+	decoder->max_nal_size = (width * height * 3) / 2; /* YCbCr420 */
+	decoder->max_nal_size /= 2; /* Apply MinCR */
+	if (width*height > 720*576)
+		decoder->max_nal_size /= 2; /* Apply MinCR */
 
 	/* Initialize m4iph */
 	if (m4iph_vpu_open(decoder->max_nal_size) < 0) {
@@ -141,21 +141,21 @@ void shcodecs_decoder_close(SHCodecs_Decoder * decoder)
 int
 shcodecs_decoder_set_frame_by_frame (SHCodecs_Decoder * decoder, int frame_by_frame)
 {
-        if (!decoder) return -1;
+	if (!decoder) return -1;
 
-        decoder->frame_by_frame = frame_by_frame;
+	decoder->frame_by_frame = frame_by_frame;
 
-        return 0;
+	return 0;
 }
 
 int
 shcodecs_decoder_set_use_physical (SHCodecs_Decoder * decoder, int use_physical)
 {
-        if (!decoder) return -1;
+	if (!decoder) return -1;
 
-        decoder->use_physical = use_physical;
+	decoder->use_physical = use_physical;
 
-        return 0;
+	return 0;
 }
 int
 shcodecs_decoder_set_decoded_callback(SHCodecs_Decoder * decoder,
@@ -177,28 +177,28 @@ shcodecs_decoder_set_decoded_callback(SHCodecs_Decoder * decoder,
 int
 shcodecs_decode(SHCodecs_Decoder * decoder, unsigned char *data, int len)
 {
-        int nused=0, total_used=0;
+	int nused=0, total_used=0;
 
-        decoder->si_input = data;
+	decoder->si_input = data;
 	decoder->last_cb_ret = 0;
 
-        while (len > 0) {
-                decoder->si_input += nused;
-	        decoder->si_ipos = 0;
-                decoder->si_ilen = MIN (decoder->max_nal_size, len);
-        	decoder->si_isize = decoder->si_ilen;
+	while (len > 0) {
+		decoder->si_input += nused;
+		decoder->si_ipos = 0;
+		decoder->si_ilen = MIN (decoder->max_nal_size, len);
+		decoder->si_isize = decoder->si_ilen;
 
-                if ((nused = decoder_start(decoder)) <= 0)
-                        break;
+		if ((nused = decoder_start(decoder)) <= 0)
+			break;
 
-                total_used += nused;
-                len -= nused;
+		total_used += nused;
+		len -= nused;
 
 		if (decoder->last_cb_ret != 0)
 			break;
-        }
+	}
 
-        return total_used;
+	return total_used;
 }
 
 int
@@ -217,8 +217,8 @@ shcodecs_decoder_output_partial (SHCodecs_Decoder * decoder)
 	int cb_ret = 0;
 
 	if (!decoder->needs_finalization) {
-                return 0;
-        }
+		return 0;
+	}
 
 	var = (M4VSD_MULTISTREAM_VARIABLES *) decoder->si_ctxt;
 	image = &var->image;
@@ -276,7 +276,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 
 	/* Get context size */
 	iContext_ReqWorkSize =
-	    avcbd_get_workarea_size(decoder->si_type ==
+		avcbd_get_workarea_size(decoder->si_type ==
 				    SHCodecs_Format_H264 ? AVCBD_TYPE_AVC :
 				    AVCBD_TYPE_MPEG4, decoder->si_max_fx,
 				    decoder->si_max_fy, 2) + 16;
@@ -296,15 +296,15 @@ static int stream_init(SHCodecs_Decoder * decoder)
 			    err1);
 	}
 
-        /* Number of reference frames */
-        /* For > D1, limit the number of reference frames to 2. This is a
-           pragmatic approach when we don't know the number of reference
-           frames in the stream... */
-        decoder->si_fnum = CFRAME_NUM;
+	/* Number of reference frames */
+	/* For > D1, limit the number of reference frames to 2. This is a
+	   pragmatic approach when we don't know the number of reference
+	   frames in the stream... */
+	decoder->si_fnum = CFRAME_NUM;
 	size_of_Y = ((decoder->si_max_fx + 15) & ~15) * ((decoder->si_max_fy + 15) & ~15);
-        if (size_of_Y > (720*576)) {
-                decoder->si_fnum = 2;
-        }
+	if (size_of_Y > (720*576)) {
+		decoder->si_fnum = 2;
+	}
 	decoder->si_flist = calloc(decoder->si_fnum, sizeof(FrameInfo));
 	CHECK_ALLOC(decoder->si_flist,
 		    decoder->si_fnum * sizeof(FrameInfo), "frame list",
@@ -381,8 +381,8 @@ static int stream_init(SHCodecs_Decoder * decoder)
 
 	return 0;
 
-      err1:
-      err2:
+err1:
+err2:
 	return -1;
 }
 
@@ -414,7 +414,7 @@ static int decoder_init(SHCodecs_Decoder * decoder)
 
 	decoder->si_fnum = 0;
 	return 0;
-      err1:
+err1:
 	return -1;
 }
 
@@ -427,7 +427,7 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 	int decoded, dpb_mode;
 	M4VSD_MULTISTREAM_VARIABLES *var;
 	struct M4VSD_IMAGE_TABLE *image;
-        int cb_ret=0;
+	int cb_ret=0;
 
 	/* decode */
 	var = (M4VSD_MULTISTREAM_VARIABLES *) decoder->si_ctxt;
@@ -444,23 +444,21 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 			fprintf(stderr, "decoder_start:: %d frames decoded\n", decoder->si_fnum);
 #endif
 
-#if 1
-                        if (!decoder->needs_finalization) {
+			if (!decoder->needs_finalization) {
 #ifdef DEBUG
-			fprintf(stderr, "decoder_start:: need data!\n");
+				fprintf(stderr, "decoder_start:: need data!\n");
 #endif
-                                goto need_data;
-                        }
-#endif
+				goto need_data;
+			}
 
 			decoded = 0;
 			if (decoder->si_type == SHCodecs_Format_H264)
 				dpb_mode = 0;
 			else {
-                                dpb_mode = 1;
-                                //m4iph_vpu4_reset();
-                        }
-                } else {
+				dpb_mode = 1;
+				//m4iph_vpu4_reset();
+			}
+		} else {
 			decoded = 1;
 			dpb_mode = 0;
 		}
@@ -480,10 +478,10 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 				}
 				break;
 			} else {
-		                cb_ret = extract_frame(decoder, index);
+				cb_ret = extract_frame(decoder, index);
 				decoder->last_cb_ret = cb_ret;
-		                decoder->index_old = index;
-                        }
+				decoder->index_old = index;
+			}
 		}
 
 #ifdef DEBUG
@@ -532,7 +530,7 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 	int max_mb;
 	TAVCBD_FRAME_SIZE frame_size;
 	static long counter = 0;
-        int input_len;
+	int input_len;
 
 	max_mb = decoder->si_mbnum;
 	do {
@@ -571,7 +569,7 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 			long hosei = 0;
 
 #ifdef DEBUG
-                        fprintf (stderr, "shcodecs_decoder::decode_frame: MPEG4 ptr = input + ipos %d\n", decoder->si_ipos);
+			fprintf (stderr, "shcodecs_decoder::decode_frame: MPEG4 ptr = input + ipos %d\n", decoder->si_ipos);
 #endif
 
 			ptr = decoder->si_input + decoder->si_ipos;
@@ -582,16 +580,16 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 
 			if (ret < 0) {
 #ifdef DEBUG
-                                fprintf (stderr, "shcodecs_decoder::decode_frame: MPEG4 search_vop_header < 0\n");
+				fprintf (stderr, "shcodecs_decoder::decode_frame: MPEG4 search_vop_header < 0\n");
 #endif
-                                if (decoder->needs_finalization) {
-				        if (*ptr != 0 || *(ptr + 1) != 0) {
-                                                break;
-                                        }
-                                } else {
-                                        break;
-                                }
-                        }
+				if (decoder->needs_finalization) {
+					if (*ptr != 0 || *(ptr + 1) != 0) {
+						break;
+					}
+				} else {
+					break;
+				}
+			}
 
 			if (decoder->si_ilen & 31)
 				hosei = 31;
@@ -743,25 +741,25 @@ static int usr_get_input_h264(SHCodecs_Decoder * decoder, void *dst)
 {
 	long len, size = 0;
 
-        len = decoder->si_isize - decoder->si_ipos;
+	len = decoder->si_isize - decoder->si_ipos;
 
 	/* Always keep a buffer of lookahead data, unless we are finalizing.
-         * The amount to keep is a heuristic based on the likely size of a
-         * large encoded frame.
-         * By returning 0 early, we force the application to either push more
-         * data or (if there is no more) to finalize.
-         */
-        if (!decoder->needs_finalization && len < (decoder->si_max_fx*decoder->si_max_fy/4)) {
+	 * The amount to keep is a heuristic based on the likely size of a
+	 * large encoded frame.
+	 * By returning 0 early, we force the application to either push more
+	 * data or (if there is no more) to finalize.
+	 */
+	if (!decoder->needs_finalization && len < (decoder->si_max_fx*decoder->si_max_fy/4)) {
 #ifdef DEBUG
-	        fprintf (stderr, "usr_get_input_h264: not enough data, going back for more\n");
+		fprintf (stderr, "usr_get_input_h264: not enough data, going back for more\n");
 #endif
-                return 0;
-        }
+		return 0;
+	}
 
 	/* skip pre-gap */
 	size = avcbd_search_start_code(
-                  decoder->si_input + decoder->si_ipos,
-                  (decoder->si_isize - decoder->si_ipos) * 8,
+	              decoder->si_input + decoder->si_ipos,
+	              (decoder->si_isize - decoder->si_ipos) * 8,
 		  0x01);
 
 	if (size < 0) {
@@ -796,39 +794,39 @@ static int usr_get_input_h264(SHCodecs_Decoder * decoder, void *dst)
  */
 static int usr_get_input_mpeg4(SHCodecs_Decoder * decoder, void *dst)
 {
-        long len, ret=0;
-        int i, zeroes=0;
-        unsigned char * c = decoder->si_input + decoder->si_ipos;
+	long len, ret=0;
+	int i, zeroes=0;
+	unsigned char * c = decoder->si_input + decoder->si_ipos;
 
-        /* When receiving data frame-by-frame, there is no need to go
-         * looking for frame boundaries.  */
-        if (decoder->frame_by_frame)
-                return decoder->si_ilen;
+	/* When receiving data frame-by-frame, there is no need to go
+	 * looking for frame boundaries.  */
+	if (decoder->frame_by_frame)
+		return decoder->si_ilen;
 
-        len = decoder->si_isize - decoder->si_ipos;
-        if (len < 3) return -2;
+	len = decoder->si_isize - decoder->si_ipos;
+	if (len < 3) return -2;
 
-        if (decoder->needs_finalization) {
+	if (decoder->needs_finalization) {
 #ifdef DEBUG
-                fprintf (stderr, "my usr_get_input_mpeg4: finalizing, returning %ld\n", len);
+		fprintf (stderr, "my usr_get_input_mpeg4: finalizing, returning %ld\n", len);
 #endif
-                        return len;
-        }
+		return len;
+	}
 
 	/* Always keep a buffer of lookahead data, unless we are finalizing.
-         * The amount to keep is a heuristic based on the likely size of a
-         * large encoded frame.
-         * By returning 0 early, we force the application to either push more
-         * data or (if there is no more) to finalize.
-         */
-        if (len < (decoder->si_max_fx*decoder->si_max_fy/4)) {
+	 * The amount to keep is a heuristic based on the likely size of a
+	 * large encoded frame.
+	 * By returning 0 early, we force the application to either push more
+	 * data or (if there is no more) to finalize.
+	 */
+	if (len < (decoder->si_max_fx*decoder->si_max_fy/4)) {
 #ifdef DEBUG
-	        fprintf (stderr, "usr_get_input_mpeg4: not enough data, going back for more\n");
+		fprintf (stderr, "usr_get_input_mpeg4: not enough data, going back for more\n");
 #endif
-                return 0;
-        }
+		return 0;
+	}
 
-        return len;
+	return len;
 }
 
 /*
