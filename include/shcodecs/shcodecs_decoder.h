@@ -15,7 +15,8 @@
 /**
  * An opaque handle to the VPU4 for decoding.
  */
-typedef void SHCodecs_Decoder;
+struct SHCodecs_Decoder;
+typedef struct SHCodecs_Decoder SHCodecs_Decoder;
 
 /**
  * Signature of a callback for libshcodecs to call when it has decoded

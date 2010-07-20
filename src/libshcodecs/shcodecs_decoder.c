@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include "shcodecs/shcodecs_decoder.h"
 #include "avcbd.h"
 #include "avcbd_optionaldata.h"
 #include "decoder_private.h"
@@ -72,7 +73,7 @@ static int decoder_start(SHCodecs_Decoder * decoder);
 /*
  * init ()
  */
-SHCodecs_Decoder *shcodecs_decoder_init(int width, int height, int format)
+SHCodecs_Decoder *shcodecs_decoder_init(int width, int height, SHCodecs_Format format)
 {
 	SHCodecs_Decoder *decoder;
 
@@ -276,7 +277,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 	/* Get context size */
 	iContext_ReqWorkSize =
 	    avcbd_get_workarea_size(decoder->si_type ==
-				    F_H264 ? AVCBD_TYPE_AVC :
+				    SHCodecs_Format_H264 ? AVCBD_TYPE_AVC :
 				    AVCBD_TYPE_MPEG4, decoder->si_max_fx,
 				    decoder->si_max_fy, 2) + 16;
 	if (iContext_ReqWorkSize < 0)
@@ -289,7 +290,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 	decoder->si_ctxt_size = iContext_ReqWorkSize;
 	memset(decoder->si_ctxt, 0, iContext_ReqWorkSize);
 	global_context = decoder->si_ctxt;
-	if (decoder->si_type == F_H264) {
+	if (decoder->si_type == SHCodecs_Format_H264) {
 		decoder->si_nalb = malloc(decoder->max_nal_size);
 		CHECK_ALLOC(decoder->si_nalb, decoder->max_nal_size, "NAL buffer",
 			    err1);
@@ -327,7 +328,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 		decoder->si_flist[i].C_fmemp = pBuf + size_of_Y;
 	}
 
-	if (decoder->si_type == F_H264) {
+	if (decoder->si_type == SHCodecs_Format_H264) {
 		decoder->si_vui = calloc(sizeof(TAVCBD_VUI_PARAMETERS), 1);
 		CHECK_ALLOC(decoder->si_vui,
 			    sizeof(TAVCBD_VUI_PARAMETERS),
@@ -351,7 +352,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 	decoder->si_ff.Y_fmemp = pBuf;
 	decoder->si_ff.C_fmemp = pBuf + size_of_Y;
 
-	stream_mode = (decoder->si_type == F_H264) ? AVCBD_TYPE_AVC : AVCBD_TYPE_MPEG4;
+	stream_mode = (decoder->si_type == SHCodecs_Format_H264) ? AVCBD_TYPE_AVC : AVCBD_TYPE_MPEG4;
 
 	/* Temp frame */
 	frame_list = malloc(decoder->si_fnum * sizeof(TAVCBD_FMEM));
@@ -374,7 +375,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 		return vpu_err(decoder, __func__, __LINE__, rc);
 
 
-	if (decoder->si_type == F_H264) {
+	if (decoder->si_type == SHCodecs_Format_H264) {
 		avcbd_set_resume_err (decoder->si_ctxt, 0, AVCBD_CNCL_REF_TYPE1);
 	}
 
@@ -391,7 +392,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
  */
 static int decoder_init(SHCodecs_Decoder * decoder)
 {
-	if (decoder->si_type == F_H264) {
+	if (decoder->si_type == SHCodecs_Format_H264) {
 		avcbd_init_memory_optional(decoder->si_ctxt, AVCBD_VUI,
 					   decoder->si_vui,
 					   sizeof(TAVCBD_VUI_PARAMETERS));
@@ -453,7 +454,7 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 #endif
 
 			decoded = 0;
-			if (decoder->si_type == F_H264)
+			if (decoder->si_type == SHCodecs_Format_H264)
 				dpb_mode = 0;
 			else {
                                 dpb_mode = 1;
@@ -468,7 +469,7 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 			long index = avcbd_get_decoded_frame(decoder->si_ctxt, dpb_mode);
 
 			if (index < 0) {
-	 			if ((decoded == 0) && (decoder->si_type != F_H264)) {
+	 			if ((decoded == 0) && (decoder->si_type != SHCodecs_Format_H264)) {
 					cb_ret = shcodecs_decoder_output_partial (decoder);
 					decoder->last_cb_ret = cb_ret;
 				}
@@ -541,7 +542,7 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 		if ((input_len = get_input(decoder, decoder->si_nalb) <= 0)) {
 			return -2;
 		}
-		if (decoder->si_type == F_H264) {
+		if (decoder->si_type == SHCodecs_Format_H264) {
 			unsigned char *input = (unsigned char *)decoder->si_nalb;
 			long len = decoder->si_ilen;
 
@@ -627,7 +628,7 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 		counter = 1;
 		m4iph_vpu_unlock();
 
-		if (decoder->si_type == F_H264) {
+		if (decoder->si_type == SHCodecs_Format_H264) {
 			curr_len = decoder->si_ilen;
 		} else {
 			curr_len = (unsigned) (decoder->last_frame_status.read_bits + 7) >> 3;
@@ -837,7 +838,7 @@ static int usr_get_input_mpeg4(SHCodecs_Decoder * decoder, void *dst)
  */
 static int get_input(SHCodecs_Decoder * decoder, void *dst)
 {
-	if (decoder->si_type == F_H264) {
+	if (decoder->si_type == SHCodecs_Format_H264) {
 		return usr_get_input_h264(decoder, dst);
 	} else {
 		return usr_get_input_mpeg4(decoder, dst);

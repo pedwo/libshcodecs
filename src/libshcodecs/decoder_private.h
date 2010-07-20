@@ -17,34 +17,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
  */
 
-#ifndef _SAMPLE_MAIN_H_
-#define _SAMPLE_MAIN_H_
-
-#define		F_NONE		0
-#define		F_MPEG4		1
-#define		F_H264		2
+#ifndef _DECODER_PRIVATE_H_
+#define _DECODER_PRIVATE_H_
 
 #define CFRAME_NUM		4
 
-typedef unsigned char uint8;
-typedef unsigned int uint32;
 typedef TAVCBD_FMEM FrameInfo;
 
-extern int vpu4_decode(char *ifile, char *ofile, int x, int y, int format,
-		int op);
-extern int vpu4_encode(char *ifile, char *ofile, int x, int y, int format,
-		int op);
-extern int vpu4_loopback(int x, int y, int format);
-extern int get_decoded_frames(void);
-
-typedef struct _SHCodecs_Decoder SHCodecs_Decoder;
-
-typedef int (*SHCodecs_Decoded_Callback) (SHCodecs_Decoder * decoder,
-                                          unsigned char * y_buf, int y_size,
-                                          unsigned char * c_buf, int c_size,
-                                          void * user_data);
-
-struct _SHCodecs_Decoder {
+struct SHCodecs_Decoder {
 	int		si_valid;	/* Is stream valid ? */
 	int		*si_ctxt;	/* Pointer to context */
 	int		si_ctxt_size;	/* Size of context */
@@ -69,66 +49,17 @@ struct _SHCodecs_Decoder {
 
 	TAVCBD_LAST_FRAME_STATUS last_frame_status;
 
-        SHCodecs_Decoded_Callback decoded_cb;
-        void            *decoded_cb_data;
+	SHCodecs_Decoded_Callback decoded_cb;
+	void		*decoded_cb_data;
 
 	long		index_old;
 	int		needs_finalization;
 	int		frame_by_frame;
-        int             use_physical;
+	int		use_physical;
 	int		frame_count;
 	int		last_cb_ret;
-        int             max_nal_size;
+	int		max_nal_size;
 };
 
 
-/**Align address in w bytes boundary.
- *VPU needs 16 bytes alignment.
- *Length of a cache line of SH4/SH4AL-DSP is 32 bytes.
- */
-
-/**
- *Convert address from non-cache space to cache space and vice versa.
- */
-#ifdef __RENESAS_VERSION__
-#define TO_CACHE(addr) ((void *)((long)addr & ~0xa0000000))
-#define TO_NONCACHE(addr) ((void *)((long)addr | 0xa0000000))
-#else
-#define TO_CACHE(addr) (addr)
-#define TO_NONCACHE(addr) (addr)
-#endif
-
-
-#if !defined(__RENESAS_VERSION__) || defined(SOFT_ONLY)
-void workaround_vpu4_cmodel(void);
-#define usr_log printf
-#else
-#ifndef VPU4
-#define VPU4
-#endif
-#define usr_log
-#endif
-
-
-/*
- * init ()
- */
-SHCodecs_Decoder *
-shcodecs_decoder_init(int width, int height, int format);
-
-/*
- * close ()
- */
-void
-shcodecs_decoder_close (SHCodecs_Decoder * decoder);
-
-int
-shcodecs_decoder_preferred_length (SHCodecs_Decoder * decoder);
-
-int
-shcodecs_decode (SHCodecs_Decoder * decoder, unsigned char * data, int len);
-
-int
-shcodecs_decode_finalize (SHCodecs_Decoder * decoder);
-
-#endif /* _SAMPLE_MAIN_H_ */
+#endif /* _DECODER_PRIVATE_H_ */
