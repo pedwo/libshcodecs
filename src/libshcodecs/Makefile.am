@@ -10,7 +10,6 @@ lib_LTLIBRARIES = libshcodecs.la
 
 noinst_HEADERS = \
 	avcbd.h \
-	avcbd_inner_typedef.h \
 	avcbd_optionaldata.h \
 	avcbe_global.h \
 	avcbe.h \
@@ -20,8 +19,7 @@ noinst_HEADERS = \
 	m4driverif.h \
 	m4iph_vpu4.h \
 	QuantMatrix.h \
-	decoder_private.h \
-	sh7722_vpu.h
+	decoder_private.h
 
 libshcodecs_la_SOURCES = \
 	m4driverif.c \
@@ -36,6 +34,6 @@ libshcodecs_la_SOURCES = \
 	mpeg4_encode.c \
 	QuantMatrix.c
 
-libshcodecs_la_CFLAGS = -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B
+libshcodecs_la_CFLAGS = -DSH -DVPU4=1 -DANNEX_B
 libshcodecs_la_LDFLAGS = -version-info @SHARED_VERSION_INFO@ @SHLIB_VERSION_ARG@
 libshcodecs_la_LIBADD = -lstdc++ $(VPU4_DEC_LIBS) $(VPU4_ENC_LIBS) $(UIOMUX_LIBS) -lm

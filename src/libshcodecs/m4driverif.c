@@ -32,7 +32,6 @@
 #include <avcbd.h>
 #include <avcbe.h>
 #include "avcbd_optionaldata.h"
-#include "avcbd_inner_typedef.h"
 #include "m4driverif.h"
 
 struct uio_map {
@@ -361,18 +360,3 @@ long m4iph_enc_continue(long output_bits)
 	return 1;
 }
 
-int avcbd_idr_adjust(void *context)
-{
-	TAVCBD_VARIABLES *var;
-
-	if ((!context) || ((int) context & 3)) {
-		return AVCBD_PARAM_ERROR;
-	}
-	var = (TAVCBD_VARIABLES *) context;
-	if (var->id != 1)
-		return 0;
-	if (var->seq_param->nal_unit_type == 5) {
-		var->poc_info.prev_frame_num = 0;
-	}
-	return 0;
-}

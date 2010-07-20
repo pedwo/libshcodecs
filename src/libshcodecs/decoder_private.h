@@ -52,7 +52,6 @@ struct SHCodecs_Decoder {
 	SHCodecs_Decoded_Callback decoded_cb;
 	void		*decoded_cb_data;
 
-	long		index_old;
 	int		needs_finalization;
 	int		frame_by_frame;
 	int		use_physical;

@@ -35,7 +35,6 @@
 #include "avcbd.h"
 #include "avcbd_optionaldata.h"
 #include "decoder_private.h"
-#include "m4iph_vpu4.h"
 #include "m4driverif.h"
 
 /* #define DEBUG */
@@ -233,7 +232,6 @@ static int stream_init(SHCodecs_Decoder * decoder)
 	int size_of_Y;
 	void *pv_wk_buff;
 	size_t dp_size;
-	TAVCBD_FMEM *frame_list;
 	long stream_mode;
 	unsigned char *pBuf;
 	long rc;
@@ -320,23 +318,12 @@ static int stream_init(SHCodecs_Decoder * decoder)
 
 	stream_mode = (decoder->si_type == SHCodecs_Format_H264) ? AVCBD_TYPE_AVC : AVCBD_TYPE_MPEG4;
 
-	/* Temp frame */
-	frame_list = malloc(decoder->si_fnum * sizeof(TAVCBD_FMEM));
-	for (j = 0; j < decoder->si_fnum; j++) {
-
-		/* 32 bytes alignemnt to cache line */
-		frame_list[j].Y_fmemp =
-		    ALIGN_NBYTES(decoder->si_flist[j].Y_fmemp, 32);
-		frame_list[j].C_fmemp =
-		    ALIGN_NBYTES(decoder->si_flist[j].C_fmemp, 32);
-	}
 	rc = avcbd_init_sequence(decoder->si_ctxt, decoder->si_ctxt_size,
-			    decoder->si_fnum, frame_list,
+			    decoder->si_fnum, decoder->si_flist,
 			    decoder->si_max_fx, decoder->si_max_fy, 2,
-			    ALIGN_NBYTES(decoder->si_dp_264, 32),
-			    ALIGN_NBYTES(decoder->si_dp_m4, 32), stream_mode,
+			    decoder->si_dp_264,
+			    decoder->si_dp_m4, stream_mode,
 			    &pv_wk_buff);
-	free(frame_list);
 	if (rc != 0)
 		return vpu_err(decoder, __func__, __LINE__, rc);
 
@@ -349,6 +336,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 
 err1:
 err2:
+	fprintf (stderr, "%s: error\n", __func__);
 	return -1;
 }
 
@@ -372,8 +360,8 @@ static int decoder_init(SHCodecs_Decoder * decoder)
 #endif
 	} else {
 		TAVCBD_FMEM filtered;
-		filtered.Y_fmemp = ALIGN_NBYTES(decoder->si_ff.Y_fmemp, 32);
-		filtered.C_fmemp = ALIGN_NBYTES(decoder->si_ff.C_fmemp, 32);
+		filtered.Y_fmemp = decoder->si_ff.Y_fmemp;
+		filtered.C_fmemp = decoder->si_ff.C_fmemp;
 		avcbd_set_filter_mode(decoder->si_ctxt, AVCBD_FILTER_DBL,
 				      AVCBD_POST, &filtered);
 	}
@@ -430,7 +418,6 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 			} else {
 				cb_ret = extract_frame(decoder, index);
 				decoder->last_cb_ret = cb_ret;
-				decoder->index_old = index;
 			}
 		}
 
