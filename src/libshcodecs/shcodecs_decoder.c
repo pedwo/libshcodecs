@@ -310,12 +310,6 @@ static int stream_init(SHCodecs_Decoder * decoder)
 	decoder->si_dp_m4 = m4iph_sdr_malloc(dp_size, 32);
 	CHECK_ALLOC(decoder->si_dp_m4, dp_size, "data partition 1", err1);
 
-	pBuf = m4iph_sdr_malloc(size_of_Y + size_of_Y/2, 32);
-	CHECK_ALLOC(pBuf, size_of_Y + size_of_Y/2,
-		    "Y component of filtered frame", err1);
-	decoder->si_ff.Y_fmemp = pBuf;
-	decoder->si_ff.C_fmemp = pBuf + size_of_Y;
-
 	stream_mode = (decoder->si_type == SHCodecs_Format_H264) ? AVCBD_TYPE_AVC : AVCBD_TYPE_MPEG4;
 
 	rc = avcbd_init_sequence(decoder->si_ctxt, decoder->si_ctxt_size,
@@ -358,12 +352,6 @@ static int decoder_init(SHCodecs_Decoder * decoder)
 #else
 		avcbd_set_decode_mode(decoder->si_ctxt, AVCBD_UNIT_NO_ANNEX_B);
 #endif
-	} else {
-		TAVCBD_FMEM filtered;
-		filtered.Y_fmemp = decoder->si_ff.Y_fmemp;
-		filtered.C_fmemp = decoder->si_ff.C_fmemp;
-		avcbd_set_filter_mode(decoder->si_ctxt, AVCBD_FILTER_DBL,
-				      AVCBD_POST, &filtered);
 	}
 
 	decoder->si_fnum = 0;

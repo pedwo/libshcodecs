@@ -45,7 +45,6 @@ struct SHCodecs_Decoder {
 	long		*si_dp_m4;	/* Only valid for MPEG-4 data. */
 	TAVCBD_VUI_PARAMETERS *si_vui; 	/* Only for H.264 data. */
 	TAVCBD_SEI 	*si_sei;	/* Only for H.264 data. */
-	FrameInfo	si_ff;		/* Filtered frame */
 
 	TAVCBD_LAST_FRAME_STATUS last_frame_status;
 
