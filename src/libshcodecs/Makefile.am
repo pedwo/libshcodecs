@@ -19,10 +19,7 @@ noinst_HEADERS = \
 	encoder_private.h \
 	m4driverif.h \
 	m4iph_vpu4.h \
-	m4vsd_h263dec.h \
-	m4vse_api_sub.h \
 	QuantMatrix.h \
-	Mpeg4vdec.h \
 	decoder_private.h \
 	sh7722_vpu.h
 

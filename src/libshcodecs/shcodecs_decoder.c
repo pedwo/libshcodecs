@@ -37,10 +37,9 @@
 #include "decoder_private.h"
 #include "m4iph_vpu4.h"
 #include "m4driverif.h"
-#include "m4vsd_h263dec.h"
 
 /* #define DEBUG */
-/* #define OUTPUT_ERROR_MSGS */
+#define OUTPUT_ERROR_MSGS
 
 #ifdef OUTPUT_ERROR_MSGS
 #define MSG_LEN 127
@@ -207,39 +206,6 @@ shcodecs_decoder_finalize (SHCodecs_Decoder * decoder)
 	decoder->needs_finalization = 1;
 
 	return decoder_start (decoder);
-}
-
-static int
-shcodecs_decoder_output_partial (SHCodecs_Decoder * decoder)
-{
-	M4VSD_MULTISTREAM_VARIABLES *var;
-	struct M4VSD_IMAGE_TABLE *image;
-	int cb_ret = 0;
-
-	if (!decoder->needs_finalization) {
-		return 0;
-	}
-
-	var = (M4VSD_MULTISTREAM_VARIABLES *) decoder->si_ctxt;
-	image = &var->image;
-
-#ifdef DEBUG
-	fprintf (stderr, "shcodecs_decoder_output_partial: DecW=%d, list[0]=%d, list[1]=%d\n",
-		     image->DecW,
-		     image->ref_pic_list[0],
-		     image->ref_pic_list[1]);
-#endif
-	if (decoder->index_old != image->ref_pic_list[0]) {
-		cb_ret = extract_frame(decoder, image->ref_pic_list[0]);
-	} else if (decoder->index_old != image->DecW) {
-		cb_ret = extract_frame(decoder, image->DecW);
-	} else if (decoder->index_old != image->ref_pic_list[1]) {
-		cb_ret = extract_frame(decoder, image->ref_pic_list[1]);
-	}
-
-	decoder->needs_finalization--;
-
-	return cb_ret;
 }
 
 int
@@ -425,14 +391,7 @@ err1:
 static int decoder_start(SHCodecs_Decoder * decoder)
 {
 	int decoded, dpb_mode;
-	M4VSD_MULTISTREAM_VARIABLES *var;
-	struct M4VSD_IMAGE_TABLE *image;
 	int cb_ret=0;
-
-	/* decode */
-	var = (M4VSD_MULTISTREAM_VARIABLES *) decoder->si_ctxt;
-	image = &var->image;
-	/* printf("\n\nDecoding Frames:                 "); */
 
 	decoder->si_valid = 1;
 
@@ -456,7 +415,6 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 				dpb_mode = 0;
 			else {
 				dpb_mode = 1;
-				//m4iph_vpu4_reset();
 			}
 		} else {
 			decoded = 1;
@@ -467,15 +425,7 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 			long index = avcbd_get_decoded_frame(decoder->si_ctxt, dpb_mode);
 
 			if (index < 0) {
-	 			if ((decoded == 0) && (decoder->si_type != SHCodecs_Format_H264)) {
-					cb_ret = shcodecs_decoder_output_partial (decoder);
-					decoder->last_cb_ret = cb_ret;
-				}
-
-				if (decoder->last_frame_status.error_num == AVCBD_PIC_NOTCODED_VOP) {
-					cb_ret = extract_frame(decoder, image->ref_pic_list[0]);
-					decoder->last_cb_ret = cb_ret;
-				}
+				decoder->last_cb_ret = cb_ret;
 				break;
 			} else {
 				cb_ret = extract_frame(decoder, index);
