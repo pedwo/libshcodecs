@@ -34,7 +34,7 @@
 #include "m4driverif.h"
 
 /* #define DEBUG */
-#define OUTPUT_ERROR_MSGS
+/* #define OUTPUT_ERROR_MSGS */
 
 #ifdef OUTPUT_ERROR_MSGS
 #define MSG_LEN 127
@@ -508,7 +508,7 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 						      decoder->input_len);
 
 			if (ret < 0) {
-				(void) vpu_err(decoder, __func__, __LINE__, ret);
+				debug_printf("%s: avcbd_search_vop_header returned %d\n", __func__, ret);
 
 				if (decoder->needs_finalization) {
 					if (*ptr != 0 || *(ptr + 1) != 0) {
