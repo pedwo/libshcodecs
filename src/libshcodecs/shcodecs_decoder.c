@@ -57,7 +57,7 @@ vpu_err(SHCodecs_Decoder *dec, const char *func, int line, long rc)
 #endif
 
 
-/* XXX: Forward declarations */
+/* Forward declarations */
 static int decode_frame(SHCodecs_Decoder * decoder);
 static int extract_frame(SHCodecs_Decoder * decoder, long frame_index);
 static int get_input(SHCodecs_Decoder * decoder, void *dst);
@@ -75,10 +75,8 @@ SHCodecs_Decoder *shcodecs_decoder_init(int width, int height, SHCodecs_Format f
 {
 	SHCodecs_Decoder *decoder;
 
-	if ((decoder = malloc(sizeof(*decoder))) == NULL)
+	if ((decoder = calloc(1, sizeof(*decoder))) == NULL)
 		return NULL;
-
-	memset(decoder, 0, sizeof(*decoder));
 
 	decoder->si_type = format;
 	decoder->si_max_fx = width;
@@ -101,19 +99,19 @@ SHCodecs_Decoder *shcodecs_decoder_init(int width, int height, SHCodecs_Format f
 
 	/* Initialize m4iph */
 	if (m4iph_vpu_open(decoder->max_nal_size) < 0) {
-		free (decoder);
+		shcodecs_decoder_close (decoder);
 		return NULL;
 	}
 
 	/* Stream initialize */
 	if (stream_init(decoder)) {
 		/* stream_init() prints the specific error message */
-		free(decoder);
+		shcodecs_decoder_close(decoder);
 		return NULL;
 	}
 	/* Decoder initialize */
 	if (decoder_init(decoder)) {
-		free(decoder);
+		shcodecs_decoder_close(decoder);
 		return NULL;
 	}
 
@@ -125,11 +123,45 @@ SHCodecs_Decoder *shcodecs_decoder_init(int width, int height, SHCodecs_Format f
  */
 void shcodecs_decoder_close(SHCodecs_Decoder * decoder)
 {
-	/* Stream finalization */
-	if (decoder->si_vui)
-		free(decoder->si_vui);
-	if (decoder->si_sei)
-		free(decoder->si_sei);
+	int i;
+	int size_of_Y;
+
+	if (!decoder) return;
+
+	size_of_Y = ((decoder->si_max_fx + 15) & ~15) * ((decoder->si_max_fy + 15) & ~15);
+
+	if (decoder->si_ctxt) {
+		free (decoder->si_ctxt);
+		decoder->si_ctxt = NULL;
+	}
+	if (decoder->si_nalb) {
+		free (decoder->si_nalb);
+		decoder->si_nalb = NULL;
+	}
+	if (decoder->si_flist) {
+		for (i = 0; i < decoder->si_fnum; i++) {
+			if (decoder->si_flist[i].Y_fmemp)
+				m4iph_sdr_free(decoder->si_flist[i].Y_fmemp, size_of_Y);
+		}
+		free (decoder->si_flist);
+		decoder->si_flist = NULL;
+	}
+	if (decoder->si_vui) {
+		free (decoder->si_vui);
+		decoder->si_vui = NULL;
+	}
+	if (decoder->si_sei) {
+		free (decoder->si_sei);
+		decoder->si_sei = NULL;
+	}
+	if (decoder->si_dp_264) {
+		m4iph_sdr_free(decoder->si_dp_264, (size_of_Y * 16)/256);
+		decoder->si_dp_264 = NULL;
+	}
+	if (decoder->si_dp_m4) {
+		m4iph_sdr_free(decoder->si_dp_m4, (size_of_Y * 64)/256);
+		decoder->si_dp_m4 = NULL;
+	}
 
 	m4iph_vpu_close();
 
@@ -155,13 +187,13 @@ shcodecs_decoder_set_use_physical (SHCodecs_Decoder * decoder, int use_physical)
 
 	return 0;
 }
+
 int
 shcodecs_decoder_set_decoded_callback(SHCodecs_Decoder * decoder,
 				      SHCodecs_Decoded_Callback decoded_cb,
 				      void *user_data)
 {
-	if (!decoder)
-		return -1;
+	if (!decoder) return -1;
 
 	decoder->decoded_cb = decoded_cb;
 	decoder->decoded_cb_data = user_data;
@@ -217,107 +249,88 @@ shcodecs_decoder_get_frame_count (SHCodecs_Decoder * decoder)
 
 /***********************************************************/
 
-void *global_context;
-
-/***********************************************************/
-
 /*
  * stream_init.
  *
  */
 static int stream_init(SHCodecs_Decoder * decoder)
 {
-	int i,j;
-	int iContext_ReqWorkSize;
+	int i;
 	int size_of_Y;
 	void *pv_wk_buff;
-	size_t dp_size;
 	long stream_mode;
 	unsigned char *pBuf;
 	long rc;
+	const long max_pic_params = 256;
 
 	avcbd_start_decoding();
 
+	stream_mode = (decoder->si_type == SHCodecs_Format_H264) ? AVCBD_TYPE_AVC : AVCBD_TYPE_MPEG4;
+
 	/* Get context size */
-	iContext_ReqWorkSize =
-		avcbd_get_workarea_size(decoder->si_type ==
-				    SHCodecs_Format_H264 ? AVCBD_TYPE_AVC :
-				    AVCBD_TYPE_MPEG4, decoder->si_max_fx,
-				    decoder->si_max_fy, 2) + 16;
-	if (iContext_ReqWorkSize < 0)
-		return vpu_err(decoder, __func__, __LINE__, iContext_ReqWorkSize);
+	decoder->si_ctxt_size = avcbd_get_workarea_size(stream_mode,
+								decoder->si_max_fx,
+								decoder->si_max_fy,
+								max_pic_params);
+	if (decoder->si_ctxt_size < 0)
+		return vpu_err(decoder, __func__, __LINE__, decoder->si_ctxt_size);
 
 	/* Allocate context memory */
-	decoder->si_ctxt = calloc(iContext_ReqWorkSize, 1);
-	CHECK_ALLOC(decoder->si_ctxt, iContext_ReqWorkSize,
-		    "stream context", err2);
-	decoder->si_ctxt_size = iContext_ReqWorkSize;
-	memset(decoder->si_ctxt, 0, iContext_ReqWorkSize);
-	global_context = decoder->si_ctxt;
+	decoder->si_ctxt = calloc(1, decoder->si_ctxt_size);
+	if (!decoder->si_ctxt) goto err;
+
 	if (decoder->si_type == SHCodecs_Format_H264) {
 		decoder->si_nalb = malloc(decoder->max_nal_size);
-		CHECK_ALLOC(decoder->si_nalb, decoder->max_nal_size, "NAL buffer",
-			    err1);
+		if (!decoder->si_nalb) goto err;
+
+		decoder->si_vui = calloc(1, sizeof(TAVCBD_VUI_PARAMETERS));
+		if (!decoder->si_vui) goto err;
+
+		decoder->si_sei = malloc(sizeof(TAVCBD_SEI));
+		if (!decoder->si_sei) goto err;
 	}
+
+	size_of_Y = ((decoder->si_max_fx + 15) & ~15) * ((decoder->si_max_fy + 15) & ~15);
+	decoder->si_mbnum = size_of_Y >> 8;
 
 	/* Number of reference frames */
 	/* For > D1, limit the number of reference frames to 2. This is a
 	   pragmatic approach when we don't know the number of reference
 	   frames in the stream... */
 	decoder->si_fnum = CFRAME_NUM;
-	size_of_Y = ((decoder->si_max_fx + 15) & ~15) * ((decoder->si_max_fy + 15) & ~15);
 	if (size_of_Y > (720*576)) {
 		decoder->si_fnum = 2;
 	}
 	decoder->si_flist = calloc(decoder->si_fnum, sizeof(FrameInfo));
-	CHECK_ALLOC(decoder->si_flist,
-		    decoder->si_fnum * sizeof(FrameInfo), "frame list",
-		    err1);
+	if (!decoder->si_flist) goto err;
 
-	decoder->si_mbnum = size_of_Y >> 8;
 	for (i = 0; i < decoder->si_fnum; i++) {
 		/*
  		 * Frame memory should be aligned on a 32-byte boundary.
 		 * Although the VPU requires 16 bytes alignment, the
 		 * cache line size is 32 bytes on the SH4.
 		 */
-
 		pBuf = m4iph_sdr_malloc(size_of_Y + size_of_Y/2, 32);
-		/* printf("%02d--Y=%X,",i,(int)pBuf); */
-		CHECK_ALLOC(pBuf,
-			    size_of_Y + size_of_Y/2,
-			    "Y component (kernel memory)", err1);
+		if (!pBuf) goto err;
 
 		decoder->si_flist[i].Y_fmemp = pBuf;
 		decoder->si_flist[i].C_fmemp = pBuf + size_of_Y;
 	}
 
-	if (decoder->si_type == SHCodecs_Format_H264) {
-		decoder->si_vui = calloc(sizeof(TAVCBD_VUI_PARAMETERS), 1);
-		CHECK_ALLOC(decoder->si_vui,
-			    sizeof(TAVCBD_VUI_PARAMETERS),
-			    "VUI parameters", err1);
-		decoder->si_sei = malloc(sizeof(TAVCBD_SEI));
-		CHECK_ALLOC(decoder->si_sei, sizeof(TAVCBD_SEI), "SEI",
-			    err1);
-	}
-	/* 16 bytes for each macroblocks */
-	dp_size = (size_of_Y * 16) >> 8;
+	decoder->si_dp_264 = m4iph_sdr_malloc((size_of_Y * 16)/256, 32);
+	if (!decoder->si_dp_264) goto err;
 
-	decoder->si_dp_264 = m4iph_sdr_malloc(dp_size, 32);
-	CHECK_ALLOC(decoder->si_dp_264, dp_size, "data partition 1", err1);
+	decoder->si_dp_m4 = m4iph_sdr_malloc((size_of_Y * 64)/256, 32);
+	if (!decoder->si_dp_m4) goto err;
 
-	decoder->si_dp_m4 = m4iph_sdr_malloc(dp_size, 32);
-	CHECK_ALLOC(decoder->si_dp_m4, dp_size, "data partition 1", err1);
-
-	stream_mode = (decoder->si_type == SHCodecs_Format_H264) ? AVCBD_TYPE_AVC : AVCBD_TYPE_MPEG4;
-
-	rc = avcbd_init_sequence(decoder->si_ctxt, decoder->si_ctxt_size,
-			    decoder->si_fnum, decoder->si_flist,
-			    decoder->si_max_fx, decoder->si_max_fy, 2,
-			    decoder->si_dp_264,
-			    decoder->si_dp_m4, stream_mode,
-			    &pv_wk_buff);
+	rc = avcbd_init_sequence(
+			decoder->si_ctxt, decoder->si_ctxt_size,
+			decoder->si_fnum, decoder->si_flist,
+			decoder->si_max_fx, decoder->si_max_fy,
+			max_pic_params,
+			decoder->si_dp_264,
+			decoder->si_dp_m4, stream_mode,
+			&pv_wk_buff);
 	if (rc != 0)
 		return vpu_err(decoder, __func__, __LINE__, rc);
 
@@ -328,9 +341,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 
 	return 0;
 
-err1:
-err2:
-	fprintf (stderr, "%s: error\n", __func__);
+err:
 	return -1;
 }
 
@@ -356,7 +367,7 @@ static int decoder_init(SHCodecs_Decoder * decoder)
 
 	decoder->si_fnum = 0;
 	return 0;
-err1:
+err:
 	return -1;
 }
 
@@ -504,9 +515,8 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 						      decoder->si_ilen);
 
 			if (ret < 0) {
-#ifdef DEBUG
-				fprintf (stderr, "shcodecs_decoder::decode_frame: MPEG4 search_vop_header < 0\n");
-#endif
+				(void) vpu_err(decoder, __func__, __LINE__, ret);
+
 				if (decoder->needs_finalization) {
 					if (*ptr != 0 || *(ptr + 1) != 0) {
 						break;
@@ -595,10 +605,6 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 		     max_mb);
 #endif
 
-		if (decoder->last_frame_status.error_num == AVCBD_PIC_NOTCODED_VOP) {
-			err = 0;
-			break;
-		}
 		if (decoder->last_frame_status.detect_param & AVCBD_SPS) {
 			avcbd_get_frame_size(decoder->si_ctxt, &frame_size);
 			decoder->si_fx = frame_size.width;
@@ -720,7 +726,7 @@ static int usr_get_input_h264(SHCodecs_Decoder * decoder, void *dst)
 static int usr_get_input_mpeg4(SHCodecs_Decoder * decoder, void *dst)
 {
 	long len, ret=0;
-	int i, zeroes=0;
+	int i;
 	unsigned char * c = decoder->si_input + decoder->si_ipos;
 
 	/* When receiving data frame-by-frame, there is no need to go
