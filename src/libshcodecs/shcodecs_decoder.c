@@ -52,7 +52,7 @@ vpu_err(SHCodecs_Decoder *dec, const char *func, int line, long rc)
 #define vpu_err(enc, func, line, rc) (rc)
 #endif
 
-void debug_printf(const char *fmt, ...)
+static void debug_printf(const char *fmt, ...)
 {
 #ifdef DEBUG
 	va_list ap;
