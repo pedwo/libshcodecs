@@ -557,11 +557,11 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 		    (stderr, "shcodecs_decoder::decode_frame: avcbd_decode_picture returned %d\n", ret);
 #endif
 		ret = avcbd_get_last_frame_stat(decoder->si_ctxt, &decoder->last_frame_status);
+		m4iph_vpu_unlock();
 		if (ret < 0)
 			return vpu_err(decoder, __func__, __LINE__, ret);
 
 		counter = 1;
-		m4iph_vpu_unlock();
 
 		if (decoder->si_type == SHCodecs_Format_H264) {
 			curr_len = decoder->si_ilen;
