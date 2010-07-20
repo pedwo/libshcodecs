@@ -25,28 +25,25 @@
 typedef TAVCBD_FMEM FrameInfo;
 
 struct SHCodecs_Decoder {
-	int		si_valid;	/* Is stream valid ? */
-	int		*si_ctxt;	/* Pointer to context */
-	int		si_ctxt_size;	/* Size of context */
-	int		si_type;	/* Type of stream */
-	unsigned char   *si_input;	/* Pointer to input buffer */
-	unsigned char	*si_nalb;	/* NAL Buffer for H.264 */ 
-	int		si_ipos;	/* Current position in input stream */
-	int		si_ilen;	/* Size of current frame/slice */
-	size_t		si_isize;	/* Total size of input data */
-	FrameInfo	*si_flist;
-	int		si_fnum;	/* Number of frames in temp frame list */
+	int		*context;	/* Pointer to context */
+	int		context_size;	/* Size of context */
+	int		format;		/* Type of stream */
+	unsigned char   *input_buf;	/* Pointer to input buffer */
+	unsigned char	*nal_buf;	/* NAL Buffer for H.264 */ 
+	int		input_pos;	/* Current position in input stream */
+	int		input_len;	/* Size of current frame/slice */
+	size_t		input_size;	/* Total size of input data */
+	FrameInfo	*frames;
+	int		num_frames;	/* Number of frames in temp frame list */
 	int		si_fx;		/* Width of frame */
 	int		si_fy;		/* Height of frame */
 	int		si_max_fx;	/* Maximum frame width */
 	int		si_max_fy;	/* Maximum frame height */
 	int		si_mbnum;	/* Size in macro blocks */
-	long		*si_dp_264;	/* Data partition pointers */
-	long		*si_dp_m4;	/* Only valid for MPEG-4 data. */
-	TAVCBD_VUI_PARAMETERS *si_vui; 	/* Only for H.264 data. */
-	TAVCBD_SEI 	*si_sei;	/* Only for H.264 data. */
-
-	TAVCBD_LAST_FRAME_STATUS last_frame_status;
+	long		*vpuwork1;	/* Data partition pointers */
+	long		*vpuwork2;	/* Only valid for MPEG-4 data. */
+	TAVCBD_VUI_PARAMETERS *vui_data; 	/* Only for H.264 data. */
+	TAVCBD_SEI 	*sei_data;	/* Only for H.264 data. */
 
 	SHCodecs_Decoded_Callback decoded_cb;
 	void		*decoded_cb_data;
