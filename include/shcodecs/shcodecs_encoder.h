@@ -15,7 +15,8 @@
 /**
  * An opaque handle to the VPU4 for encoding.
  */
-typedef void SHCodecs_Encoder;
+struct SHCodecs_Encoder;
+typedef struct SHCodecs_Encoder SHCodecs_Encoder;
 
 /**
  * Signature of a callback for libshcodecs to call when it requires YUV 4:2:0 data.

@@ -20,7 +20,7 @@
 #ifndef __ENCODER_PRIVATE_H__
 #define __ENCODER_PRIVATE_H__
 
-#include <shcodecs/shcodecs_common.h>
+#include "shcodecs/shcodecs_encoder.h"
 
 #include "avcbe.h"
 #include "avcbe_inner.h"
@@ -33,48 +33,6 @@
 #define NUM_LDEC_FRAMES (MAX_NUM_REF_FRAMES+1)
 
 #define ROUND_UP_16(x) ((((x)+15) / 16) * 16)
-
-/**
- * An opaque handle to the VPU4 for encoding.
- */
-typedef struct _SHCodecs_Encoder SHCodecs_Encoder;
-
-/**
- * Signature of a callback for libshcodecs to call when it requires YUV 4:2:0 data.
- * To pause encoding, return 1 from this callback.
- * \param encoder The SHCodecs_Encoder* handle
- * \param user_data Arbitrary data supplied by user
- * \retval 0 Continue encoding
- * \retval 1 Pause encoding, return from shcodecs_encode()
- */
-typedef int (*SHCodecs_Encoder_Input) (SHCodecs_Encoder * encoder, void *user_data);
-
-/**
- * Signature of a callback for libshcodecs to call when it no longer requires
- * access to a previously input YUV buffer.
- * To pause encoding, return 1 from this callback.
- * \param encoder The SHCodecs_Encoder* handle
- * \param user_data Arbitrary data supplied by user
- * \retval 0 Continue encoding
- * \retval 1 Pause encoding, return from shcodecs_encode()
- */
-typedef int (*SHCodecs_Encoder_Input_Release) (SHCodecs_Encoder * encoder,
-                                               unsigned char * y_input,
-                                               unsigned char * c_input,
-                                               void * user_data);
-/**
- * Signature of a callback for libshcodecs to call when it has encoded data.
- * To pause encoding, return 1 from this callback.
- * \param encoder The SHCodecs_Encoder* handle
- * \param data The encoded data
- * \param length Length of encoded data in bytes
- * \param user_data Arbitrary data supplied by user
- * \retval 0 Continue encoding
- * \retval 1 Pause encoding, return from shcodecs_encode()
- */
-typedef int (*SHCodecs_Encoder_Output) (SHCodecs_Encoder * encoder,
-					unsigned char *data, int length,
-					void *user_data);
 
 typedef struct {
 	long weightdQ_enable;
@@ -102,7 +60,7 @@ typedef struct {
 	avcbe_sei_recovery_point_param sei_recovery_point_param;
 } OTHER_API_ENC_PARAM;
 
-struct _SHCodecs_Encoder {
+struct SHCodecs_Encoder {
 	int width;
 	int height;
 
