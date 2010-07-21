@@ -40,8 +40,6 @@
 
 #define USE_BVOP
 
-extern long encode_time;
-
 
 #ifdef OUTPUT_ERROR_MSGS
 #define MSG_LEN 127
@@ -365,8 +363,8 @@ mpeg4_encode_picture (SHCodecs_Encoder *enc,
 {
 	long rc;
 	int cb_ret;
-#ifdef USE_BVOP
 	unsigned long i;
+#ifdef USE_BVOP
 	unsigned char *addr_y_tbl[17], *addr_c_tbl[17];
 	AVCBE_FRAME_CHECK frame_check_array[17];
 #endif
@@ -449,11 +447,6 @@ mpeg4_encode_picture (SHCodecs_Encoder *enc,
 					break;
 				}
 			}
-		}
-#else
-		if (enc->release) {
-			enc->release (enc, input_frame.Y_fmemp, input_frame.C_fmemp,
-                                      enc_release_user_data);
 		}
 #endif
 
