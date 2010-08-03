@@ -25,6 +25,7 @@
 typedef TAVCBD_FMEM FrameInfo;
 
 struct SHCodecs_Decoder {
+	void	*vpu;
 	int		*context;	/* Pointer to context */
 	int		context_size;	/* Size of context */
 	int		format;		/* Type of stream */

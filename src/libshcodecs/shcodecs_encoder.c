@@ -122,14 +122,14 @@ void shcodecs_encoder_close(SHCodecs_Encoder * encoder)
 	if (encoder->allocate) {
 		for (i=0; i<NUM_INPUT_FRAMES; i++) {
 			if (encoder->input_frames[i].Y_fmemp)
-				m4iph_sdr_free(encoder->input_frames[i].Y_fmemp, width_height);
+				m4iph_sdr_free(encoder->vpu, encoder->input_frames[i].Y_fmemp, width_height);
 		}
 	}
 
 	/* Local decode images */
 	for (i=0; i<NUM_LDEC_FRAMES; i++) {
 		if (encoder->local_frames[i].Y_fmemp)
-			m4iph_sdr_free(encoder->local_frames[i].Y_fmemp, width_height);
+			m4iph_sdr_free(encoder->vpu, encoder->local_frames[i].Y_fmemp, width_height);
 	}
 
 	if (encoder->format == SHCodecs_Format_H264) {
@@ -141,20 +141,20 @@ void shcodecs_encoder_close(SHCodecs_Encoder * encoder)
 	free(encoder->stream_buff_info.buff_top);
 	free(encoder->end_code_buff_info.buff_top);
 
-	free(encoder);
+	m4iph_vpu_close(encoder->vpu);
 
-	m4iph_vpu_close();
+	free(encoder);
 }
 
 static int
-shcodecs_encoder_global_init (int width, int height)
+shcodecs_encoder_global_init (SHCodecs_Encoder *encoder)
 {
-	if (m4iph_vpu_open(dimension_stream_buff_size (width, height)) < 0)
+	if ((encoder->vpu = m4iph_vpu_open(dimension_stream_buff_size (encoder->width, encoder->height))) == NULL)
 		return -1;
 
-	m4iph_vpu_lock();
+	m4iph_vpu_lock(encoder->vpu);
 	avcbe_start_encoding();
-	m4iph_vpu_unlock();
+	m4iph_vpu_unlock(encoder->vpu);
 
 	return 0;
 }
@@ -197,6 +197,11 @@ SHCodecs_Encoder *shcodecs_encoder_init(int width, int height,
 	encoder->output_filler_enable = 0;
 	encoder->output_filler_data = 0;
 
+	if (shcodecs_encoder_global_init (encoder) < 0) {
+		shcodecs_encoder_close(encoder);
+		return NULL;
+	}
+
 	init_other_API_enc_param(&encoder->other_API_enc_param);
 
 	if (encoder->format == SHCodecs_Format_H264) {
@@ -205,7 +210,7 @@ SHCodecs_Encoder *shcodecs_encoder_init(int width, int height,
 		return_code = mpeg4_encode_init (encoder, AVCBE_MPEG4);
 	}
 	if (return_code < 0) {
-		free (encoder);
+		shcodecs_encoder_close(encoder);
 		return NULL;
 	}
 
@@ -228,7 +233,7 @@ shcodecs_encoder_deferred_init (SHCodecs_Encoder * encoder)
 	/* Input buffers */
 	if (encoder->allocate) {
 		for (i=0; i<NUM_INPUT_FRAMES; i++) {
-			pY = m4iph_sdr_malloc(width_height, 32);
+			pY = m4iph_sdr_malloc(encoder->vpu, width_height, 32);
 			if (!pY) goto err;
 			encoder->input_frames[i].Y_fmemp = pY;
 			encoder->input_frames[i].C_fmemp = pY + encoder->y_bytes;
@@ -238,7 +243,7 @@ shcodecs_encoder_deferred_init (SHCodecs_Encoder * encoder)
 	/* Local decode images. This is the number of reference frames plus one
 	   for the locally decoded output */
 	for (i=0; i<NUM_LDEC_FRAMES; i++) {
-		pY = m4iph_sdr_malloc(width_height, 32);
+		pY = m4iph_sdr_malloc(encoder->vpu, width_height, 32);
 		if (!pY) goto err;
 		encoder->local_frames[i].Y_fmemp = pY;
 		encoder->local_frames[i].C_fmemp = pY + encoder->y_bytes;
@@ -339,10 +344,6 @@ int shcodecs_encoder_run(SHCodecs_Encoder * encoder)
 			return -1;
 
 	if (encoder->initialized < 1) {
-		if (shcodecs_encoder_global_init (encoder->width, encoder->height) < 0) {
-			return -1;
-		}
-
 		if (shcodecs_encoder_deferred_init (encoder) == -1) {
 			return -1;
 		}
@@ -358,24 +359,7 @@ int shcodecs_encoder_run(SHCodecs_Encoder * encoder)
 int shcodecs_encoder_run_multiple (SHCodecs_Encoder * encoders[], int nr_encoders)
 {
 	SHCodecs_Encoder * encoder;
-	int i, maxwidth=0, maxheight=0;
-
-	for (i=0; i < nr_encoders; i++) {
-		encoder = encoders[i];
-
-		if (encoder == NULL)
-			return -1;
-
-		maxwidth = MAX(maxwidth, encoder->width);
-		maxheight = MAX(maxheight, encoder->height);
-	}
-
-	if (shcodecs_encoder_global_init (maxwidth, maxheight) < 0) {
-		for (i=0; i < nr_encoders; i++) {
-			free(encoders[i]);
-		}
-		return -1;
-	}
+	int i;
 
 	for (i=0; i < nr_encoders; i++) {
 		encoder = encoders[i];

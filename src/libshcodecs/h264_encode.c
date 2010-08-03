@@ -136,9 +136,11 @@ h264_encode_init (SHCodecs_Encoder *enc, long stream_type)
 		goto err;
 
 	/* Set default values for the parameters */
+	m4iph_vpu_lock(enc->vpu);
 	rc = avcbe_set_default_param(stream_type, AVCBE_RATE_NORMAL,
 				    &(enc->encoding_property),
 				    (void *)&(enc->other_options_h264));
+	m4iph_vpu_unlock(enc->vpu);
 	if (rc != 0)
 		return vpu_err(enc, __func__, __LINE__, rc);
 
@@ -521,7 +523,9 @@ h264_encode_multiple(SHCodecs_Encoder *encs[], int nr_encoders)
 
 		/* Setup VUI parameters */
 		if (enc->other_options_h264.avcbe_out_vui_parameters == AVCBE_ON) {
+			m4iph_vpu_lock(enc->vpu);
 			rc = setup_vui_params(enc);
+			m4iph_vpu_unlock(enc->vpu);
 			if (rc != 0)
 				return rc;
 		}
@@ -555,9 +559,9 @@ h264_encode_multiple(SHCodecs_Encoder *encs[], int nr_encoders)
 			}
 
 			/* Encode the frame */
-			m4iph_vpu_lock();
+			m4iph_vpu_lock(enc->vpu);
 			rc = h264_encode_frame(enc, enc->addr_y, enc->addr_c);
-			m4iph_vpu_unlock();
+			m4iph_vpu_unlock(enc->vpu);
 
 			if (enc->release) {
 				enc->release(enc, enc->addr_y, enc->addr_c, enc->release_user_data);
@@ -580,7 +584,9 @@ h264_encode_run_multiple (SHCodecs_Encoder *encs[], int nr_encoders, long stream
 	for (i=0; i < nr_encoders; i++) {
 		enc = encs[i];
 		if (enc->initialized < 2) {
+			m4iph_vpu_lock(enc->vpu);
 			rc = h264_encode_deferred_init(enc, stream_type);
+			m4iph_vpu_unlock(enc->vpu);
 			if (rc != 0)
 				return rc;
 		}
@@ -593,7 +599,9 @@ h264_encode_run_multiple (SHCodecs_Encoder *encs[], int nr_encoders, long stream
 	/* End encoding */
 	for (i=0; i < nr_encoders; i++) {
 		enc = encs[i];
+		m4iph_vpu_lock(enc->vpu);
 		length = avcbe_put_end_code(enc->stream_info, &enc->end_code_buff_info, AVCBE_END_OF_STRM);
+		m4iph_vpu_unlock(enc->vpu);
 		if (length <= 0)
 			return vpu_err(enc, __func__, __LINE__, length);
 		rc = output_data(enc, END, enc->end_code_buff_info.buff_top, length);

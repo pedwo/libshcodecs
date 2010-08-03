@@ -36,16 +36,16 @@
 	} while (0)
 
 
-int m4iph_vpu_open(int stream_buf_size);
-void m4iph_vpu_close(void);
+void *m4iph_vpu_open(int stream_buf_size);
+void m4iph_vpu_close(void *vpu_data);
 
-void m4iph_vpu_lock(void);
-void m4iph_vpu_unlock(void);
+void m4iph_vpu_lock(void *vpu_data);
+void m4iph_vpu_unlock(void *vpu_data);
 
-void *m4iph_sdr_malloc(unsigned long count, int align);
-void m4iph_sdr_free(void *address, unsigned long count);
+void *m4iph_sdr_malloc(void *vpu_data, unsigned long count, int align);
+void m4iph_sdr_free(void *vpu_data, void *address, unsigned long count);
 void m4iph_avcbd_perror(char *msg, int error);
 void m4iph_avcbe_perror(char *msg, int error);
-void *m4iph_addr_to_virt(void *address);
+void *m4iph_addr_to_virt(void *vpu_data, void *address);
 
 #endif

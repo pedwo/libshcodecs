@@ -104,7 +104,7 @@ SHCodecs_Decoder *shcodecs_decoder_init(int width, int height, SHCodecs_Format f
 		decoder->max_nal_size /= 2; /* Apply MinCR */
 
 	/* Initialize m4iph */
-	if (m4iph_vpu_open(decoder->max_nal_size) < 0) {
+	if ((decoder->vpu = m4iph_vpu_open(decoder->max_nal_size)) == NULL) {
 		shcodecs_decoder_close (decoder);
 		return NULL;
 	}
@@ -147,7 +147,7 @@ void shcodecs_decoder_close(SHCodecs_Decoder * decoder)
 	if (decoder->frames) {
 		for (i = 0; i < decoder->num_frames; i++) {
 			if (decoder->frames[i].Y_fmemp)
-				m4iph_sdr_free(decoder->frames[i].Y_fmemp, size_of_Y);
+				m4iph_sdr_free(decoder->vpu, decoder->frames[i].Y_fmemp, size_of_Y);
 		}
 		free (decoder->frames);
 		decoder->frames = NULL;
@@ -161,15 +161,15 @@ void shcodecs_decoder_close(SHCodecs_Decoder * decoder)
 		decoder->sei_data = NULL;
 	}
 	if (decoder->vpuwork1) {
-		m4iph_sdr_free(decoder->vpuwork1, (size_of_Y * 16)/256);
+		m4iph_sdr_free(decoder->vpu, decoder->vpuwork1, (size_of_Y * 16)/256);
 		decoder->vpuwork1 = NULL;
 	}
 	if (decoder->vpuwork2) {
-		m4iph_sdr_free(decoder->vpuwork2, (size_of_Y * 64)/256);
+		m4iph_sdr_free(decoder->vpu, decoder->vpuwork2, (size_of_Y * 64)/256);
 		decoder->vpuwork2 = NULL;
 	}
 
-	m4iph_vpu_close();
+	m4iph_vpu_close(decoder->vpu);
 
 	free(decoder);
 }
@@ -316,17 +316,17 @@ static int stream_init(SHCodecs_Decoder * decoder)
 		 * Although the VPU requires 16 bytes alignment, the
 		 * cache line size is 32 bytes on the SH4.
 		 */
-		pBuf = m4iph_sdr_malloc(size_of_Y + size_of_Y/2, 32);
+		pBuf = m4iph_sdr_malloc(decoder->vpu, size_of_Y + size_of_Y/2, 32);
 		if (!pBuf) goto err;
 
 		decoder->frames[i].Y_fmemp = pBuf;
 		decoder->frames[i].C_fmemp = pBuf + size_of_Y;
 	}
 
-	decoder->vpuwork1 = m4iph_sdr_malloc((size_of_Y * 16)/256, 32);
+	decoder->vpuwork1 = m4iph_sdr_malloc(decoder->vpu, (size_of_Y * 16)/256, 32);
 	if (!decoder->vpuwork1) goto err;
 
-	decoder->vpuwork2 = m4iph_sdr_malloc((size_of_Y * 64)/256, 32);
+	decoder->vpuwork2 = m4iph_sdr_malloc(decoder->vpu, (size_of_Y * 64)/256, 32);
 	if (!decoder->vpuwork2) goto err;
 
 	rc = avcbd_init_sequence(
@@ -537,7 +537,7 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 				return vpu_err(decoder, __func__, __LINE__, ret);
 		}
 
-		m4iph_vpu_lock();
+		m4iph_vpu_lock(decoder->vpu);
 		ret = avcbd_decode_picture(decoder->context, decoder->input_len * 8);
 		if (ret < 0)
 			(void) vpu_err(decoder, __func__, __LINE__, ret);
@@ -545,7 +545,7 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 		debug_printf
 		    ("%s: avcbd_decode_picture returned %d\n", __func__, ret);
 		ret = avcbd_get_last_frame_stat(decoder->context, &status);
-		m4iph_vpu_unlock();
+		m4iph_vpu_unlock(decoder->vpu);
 		if (ret < 0)
 			return vpu_err(decoder, __func__, __LINE__, ret);
 
@@ -629,7 +629,7 @@ static int extract_frame(SHCodecs_Decoder * decoder, long frame_index)
 		if (decoder->use_physical) {
 			yf = frame->Y_fmemp;
 		} else {
-			yf = m4iph_addr_to_virt(frame->Y_fmemp);
+			yf = m4iph_addr_to_virt(decoder->vpu, frame->Y_fmemp);
 		}
 
 		cf = yf + size_of_Y;

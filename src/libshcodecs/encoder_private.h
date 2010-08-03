@@ -61,6 +61,7 @@ typedef struct {
 } OTHER_API_ENC_PARAM;
 
 struct SHCodecs_Encoder {
+	void	*vpu;
 	int width;
 	int height;
 
