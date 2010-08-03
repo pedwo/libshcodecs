@@ -74,6 +74,6 @@ shcodecs_cap_SOURCES =  \
 	avcbeinputuser.c
 
 shcodecs_cap_CFLAGS = $(SHVEU_CFLAGS) $(UIOMUX_CFLAGS)
-shcodecs_cap_LDADD = $(SHVEU_LIBS) $(UIOMUX_LIBS)  $(SHCODECS_LIBS)
+shcodecs_cap_LDADD = $(SHVEU_LIBS) $(UIOMUX_LIBS) -lrt $(SHCODECS_LIBS)
 
 
