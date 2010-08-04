@@ -378,50 +378,55 @@ err:
 }
 
 /*
- * decoder_start
+ * decode frames until we want more data or there is an error
  *
  */
 static int decoder_start(SHCodecs_Decoder * decoder)
 {
-	int decoded, dpb_mode;
-	int cb_ret=0;
+	int decoded;
+	int ret;
 
 	do {
-		decoded = 0;
+		decoded = 1;
 
-		if (decode_frame(decoder) < 0) {
-			debug_printf("%s: %d frames decoded\n", __func__, decoder->frame_count);
+		debug_printf("\n%s: start of loop: cnt=%d\n", __func__, decoder->frame_count);
 
-			if (!decoder->needs_finalization) {
-				debug_printf("%s: need data!\n", __func__);
-				goto need_data;
-			}
+		m4iph_vpu_lock(decoder->vpu);
 
-			decoded = 0;
-			if (decoder->format == SHCodecs_Format_H264)
-				dpb_mode = 0;
-			else {
-				dpb_mode = 1;
-			}
-		} else {
-			decoded = 1;
-			dpb_mode = 0;
-		}
+		ret = decode_frame(decoder);
 
-		while (cb_ret == 0) {
-			long index = avcbd_get_decoded_frame(decoder->context, dpb_mode);
+		if (ret == 0) {
+			/* Frame decoded */
+			long index = avcbd_get_decoded_frame(decoder->context, 0);
 
 			if (index < 0) {
-				decoder->last_cb_ret = cb_ret;
-				break;
+				debug_printf("%s: Couldn't get decoded frame\n", __func__);
+				decoder->last_cb_ret = 0;
 			} else {
-				cb_ret = extract_frame(decoder, index);
-				decoder->last_cb_ret = cb_ret;
+				debug_printf("%s: Got decoded frame at %d\n", __func__, index);
+				extract_frame(decoder, index);
+				decoder->last_cb_ret = 0;
 			}
 		}
 
-		debug_printf("%s: %16d,dpb_mode=%d\n", __func__, decoder->frame_count, dpb_mode);
-	} while (decoded && cb_ret == 0);
+		m4iph_vpu_unlock(decoder->vpu);
+
+		if (ret == 1) {
+			/* Would like more data */
+			if (!decoder->needs_finalization) {
+				debug_printf("%s: need data (frame %d)!\n", __func__, decoder->frame_count);
+				goto need_data;
+			}
+			decoded = 0;
+		}
+
+		if (ret < 0) {
+			/* Decode error */
+			debug_printf("ERROR: %s: %d frames decoded\n", __func__, decoder->frame_count);
+			decoded = 0;
+		}
+
+	} while (decoded);
 
 need_data:
 
@@ -455,6 +460,7 @@ static int increment_input (SHCodecs_Decoder * decoder, int len)
  * decode_frame()
  *
  * Decode one frame.
+ * Returns 0 frame decoded, 1 want more data, <0 on error
  */
 static int decode_frame(SHCodecs_Decoder * decoder)
 {
@@ -470,11 +476,13 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 		int curr_len = 0;
 		err = -1;
 
-		if ((input_len = get_input(decoder, decoder->nal_buf) <= 0)) {
-			return -2;
+		if ((input_len = get_input(decoder, decoder->nal_buf)) <= 0) {
+			/* This is not an error, it just means that we want more data */
+			return 1;
 		}
+
 		if (decoder->format == SHCodecs_Format_H264) {
-			unsigned char *input = (unsigned char *)decoder->nal_buf;
+			unsigned char *input = decoder->nal_buf;
 			long len = decoder->input_len;
 
 			debug_printf
@@ -537,7 +545,6 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 				return vpu_err(decoder, __func__, __LINE__, ret);
 		}
 
-		m4iph_vpu_lock(decoder->vpu);
 		ret = avcbd_decode_picture(decoder->context, decoder->input_len * 8);
 		if (ret < 0)
 			(void) vpu_err(decoder, __func__, __LINE__, ret);
@@ -545,7 +552,6 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 		debug_printf
 		    ("%s: avcbd_decode_picture returned %d\n", __func__, ret);
 		ret = avcbd_get_last_frame_stat(decoder->context, &status);
-		m4iph_vpu_unlock(decoder->vpu);
 		if (ret < 0)
 			return vpu_err(decoder, __func__, __LINE__, ret);
 
@@ -658,6 +664,8 @@ static int usr_get_input_h264(SHCodecs_Decoder * decoder, void *dst)
 	len = decoder->input_size - decoder->input_pos;
 
 	/* Always keep a buffer of lookahead data, unless we are finalizing.
+	 * Doing so avoids attempts to decode partial data that ultimately is
+	 * decoded again when more data is available.
 	 * The amount to keep is a heuristic based on the likely size of a
 	 * large encoded frame.
 	 * By returning 0 early, we force the application to either push more
@@ -724,6 +732,8 @@ static int usr_get_input_mpeg4(SHCodecs_Decoder * decoder, void *dst)
 	}
 
 	/* Always keep a buffer of lookahead data, unless we are finalizing.
+	 * Doing so avoids attempts to decode partial data that ultimately is
+	 * decoded again when more data is available.
 	 * The amount to keep is a heuristic based on the likely size of a
 	 * large encoded frame.
 	 * By returning 0 early, we force the application to either push more
