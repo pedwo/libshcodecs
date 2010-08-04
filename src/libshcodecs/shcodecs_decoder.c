@@ -413,10 +413,7 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 
 		if (ret == 1) {
 			/* Would like more data */
-			if (!decoder->needs_finalization) {
-				debug_printf("%s: need data (frame %d)!\n", __func__, decoder->frame_count);
-				goto need_data;
-			}
+			debug_printf("%s: need data (frame %d)!\n", __func__, decoder->frame_count);
 			decoded = 0;
 		}
 
@@ -427,8 +424,6 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 		}
 
 	} while (decoded);
-
-need_data:
 
 	/* Return number of bytes consumed */
 	return decoder->input_pos;
