@@ -156,15 +156,7 @@ void m4iph_vpu_close(void *vpu_data)
 void m4iph_vpu_lock(void *vpu_data)
 {
 	SHCodecs_vpu *vpu = (SHCodecs_vpu *)vpu_data;
-	int ret;
-
 	uiomux_lock (vpu->uiomux, UIOMUX_SH_VPU);
-
-	ret = m4iph_vpu4_init(&vpu->params);
-	if (ret != 0)
-		fprintf(stderr, "%s: m4iph_vpu4_init returned %d\n", __func__, ret);
-
-	avcbe_start_encoding();
 }
 
 void m4iph_vpu_unlock(void *vpu_data)

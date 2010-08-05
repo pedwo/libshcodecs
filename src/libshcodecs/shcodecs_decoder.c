@@ -43,7 +43,7 @@ vpu_err(SHCodecs_Decoder *dec, const char *func, int line, long rc)
 {
 	char msg[MSG_LEN+1];
 	msg[MSG_LEN] = 0;
-	snprintf(msg, MSG_LEN, "%s, line %d: returned %ld", func, line, rc);
+	snprintf(msg, MSG_LEN, "%s, line %d: returned %ld (dec=%dx%d)", func, line, rc, dec->si_max_fx, dec->si_max_fy);
 	m4iph_avcbd_perror(msg, rc);
 	exit(1);
 	return rc;
@@ -269,21 +269,7 @@ static int stream_init(SHCodecs_Decoder * decoder)
 	long rc;
 	const long max_pic_params = 256;
 
-	avcbd_start_decoding();
-
 	stream_mode = (decoder->format == SHCodecs_Format_H264) ? AVCBD_TYPE_AVC : AVCBD_TYPE_MPEG4;
-
-	/* Get context size */
-	decoder->context_size = avcbd_get_workarea_size(stream_mode,
-								decoder->si_max_fx,
-								decoder->si_max_fy,
-								max_pic_params);
-	if (decoder->context_size < 0)
-		return vpu_err(decoder, __func__, __LINE__, decoder->context_size);
-
-	/* Allocate context memory */
-	decoder->context = calloc(1, decoder->context_size);
-	if (!decoder->context) goto err;
 
 	if (decoder->format == SHCodecs_Format_H264) {
 		decoder->nal_buf = malloc(decoder->max_nal_size);
@@ -329,6 +315,21 @@ static int stream_init(SHCodecs_Decoder * decoder)
 	decoder->vpuwork2 = m4iph_sdr_malloc(decoder->vpu, (size_of_Y * 64)/256, 32);
 	if (!decoder->vpuwork2) goto err;
 
+	avcbd_start_decoding();
+
+	/* Get context size */
+	decoder->context_size = avcbd_get_workarea_size(stream_mode,
+								decoder->si_max_fx,
+								decoder->si_max_fy,
+								max_pic_params);
+	if (decoder->context_size < 0)
+		return vpu_err(decoder, __func__, __LINE__, decoder->context_size);
+
+	/* Allocate context memory */
+	decoder->context = calloc(1, decoder->context_size);
+	if (!decoder->context)
+		goto err;
+
 	rc = avcbd_init_sequence(
 			decoder->context, decoder->context_size,
 			decoder->num_frames, decoder->frames,
@@ -337,9 +338,18 @@ static int stream_init(SHCodecs_Decoder * decoder)
 			decoder->vpuwork1,
 			decoder->vpuwork2, stream_mode,
 			&pv_wk_buff);
+
+	{
+		int z;
+		unsigned char *ctx = decoder->context;
+		debug_printf ("%s: context (len=%d, for dec %dx%d):\n", __func__, decoder->context_size, decoder->si_max_fx, decoder->si_max_fy);
+		for (z=0; z<decoder->context_size; z+=4)
+			debug_printf("%02x%02x%02x%02x ", ctx[z+0], ctx[z+1], ctx[z+2], ctx[z+3]);
+		debug_printf ("\n");
+	}
+
 	if (rc != 0)
 		return vpu_err(decoder, __func__, __LINE__, rc);
-
 
 	if (decoder->format == SHCodecs_Format_H264) {
 		avcbd_set_resume_err (decoder->context, 0, AVCBD_CNCL_REF_TYPE1);
@@ -479,12 +489,12 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 		if (decoder->format == SHCodecs_Format_H264) {
 			unsigned char *input = decoder->nal_buf;
 			long len = decoder->input_len;
+			int z;
 
-			debug_printf
-			    ("%s: H.264 len %d: %02x%02x%02x%02x %02x%02x%02x%02x\n", __func__,
-			     decoder->input_len, input[0], input[1],
-			     input[2], input[3], input[4], input[5],
-			     input[6], input[7]);
+			debug_printf ("%s: H.264 len %d\n", __func__, decoder->input_len);
+			for (z=0; z<8; z+=4)
+				debug_printf("%02x%02x%02x%02x ", input[z+0], input[z+1], input[z+2], input[z+3]);
+			debug_printf ("\n");
 
 #ifndef ANNEX_B
 			/* skip "00.. 00 01" to simulate RTP */
@@ -499,22 +509,26 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 			if (ret < 0)
 				return vpu_err(decoder, __func__, __LINE__, ret);
 		} else {
-			unsigned char *ptr;
+			unsigned char *input = decoder->input_buf + decoder->input_pos;;
 			long hosei = 0;
+			int z;
 
-			debug_printf("%s: MPEG4 ptr = input + ipos %d\n", __func__, decoder->input_pos);
+			debug_printf("%s: MPEG4 ptr=%p; pos=%d\n", __func__, input, decoder->input_pos);
 
-			ptr = decoder->input_buf + decoder->input_pos;
+			debug_printf ("%s: MPEG4 len %d\n", __func__, decoder->input_len);
+			for (z=0; z<8; z+=4)
+				debug_printf("%02x%02x%02x%02x ", input[z+0], input[z+1], input[z+2], input[z+3]);
+			debug_printf ("\n");
 
 			ret = avcbd_search_vop_header(decoder->context,
-						      ptr,
+						      input,
 						      decoder->input_len);
 
 			if (ret < 0) {
 				debug_printf("%s: avcbd_search_vop_header returned %d\n", __func__, ret);
 
 				if (decoder->needs_finalization) {
-					if (*ptr != 0 || *(ptr + 1) != 0) {
+					if (*input != 0 || *(input + 1) != 0) {
 						break;
 					}
 				} else {
@@ -529,12 +543,12 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 #if 0 /* WTF? */
 			if (counter) {
 				for (i = 0; i < 16; i++) {
-					*(ptr + decoder->input_len + i) = 0;
+					*(input + decoder->input_len + i) = 0;
 				}
 			}
 #endif
-			ret = avcbd_set_stream_pointer(decoder->context,
-						 decoder->input_buf + decoder->input_pos,
+
+			ret = avcbd_set_stream_pointer(decoder->context, input,
 						 decoder->input_len + hosei, NULL);
 			if (ret < 0)
 				return vpu_err(decoder, __func__, __LINE__, ret);
