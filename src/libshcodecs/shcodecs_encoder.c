@@ -387,8 +387,10 @@ shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder,
 				unsigned char * y_input, unsigned char * c_input)
 {
 	/* Write image data to kernel memory for VPU */
+	m4iph_vpu_lock(encoder->vpu);
 	m4iph_sdr_write(encoder->addr_y, y_input, encoder->y_bytes);
 	m4iph_sdr_write(encoder->addr_c, c_input, encoder->y_bytes / 2);
+	m4iph_vpu_unlock(encoder->vpu);
 
 	return 0;
 }

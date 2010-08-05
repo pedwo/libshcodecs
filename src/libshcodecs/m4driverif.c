@@ -147,7 +147,6 @@ void m4iph_vpu_close(void *vpu_data)
 			vpu->uiomux = NULL;
 			vpu_initialised = 0;
 			free(vpu);
-			current_vpu = NULL;
 		}
 	}
 	pthread_mutex_unlock(&mutex);
@@ -157,6 +156,7 @@ void m4iph_vpu_lock(void *vpu_data)
 {
 	SHCodecs_vpu *vpu = (SHCodecs_vpu *)vpu_data;
 	uiomux_lock (vpu->uiomux, UIOMUX_SH_VPU);
+	current_vpu = vpu;
 }
 
 void m4iph_vpu_unlock(void *vpu_data)

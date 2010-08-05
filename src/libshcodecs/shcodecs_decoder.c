@@ -330,6 +330,8 @@ static int stream_init(SHCodecs_Decoder * decoder)
 	if (!decoder->context)
 		goto err;
 
+	m4iph_vpu_lock(decoder->vpu);
+
 	rc = avcbd_init_sequence(
 			decoder->context, decoder->context_size,
 			decoder->num_frames, decoder->frames,
@@ -338,6 +340,8 @@ static int stream_init(SHCodecs_Decoder * decoder)
 			decoder->vpuwork1,
 			decoder->vpuwork2, stream_mode,
 			&pv_wk_buff);
+
+	m4iph_vpu_unlock(decoder->vpu);
 
 	{
 		int z;
@@ -769,3 +773,4 @@ static int get_input(SHCodecs_Decoder * decoder, void *dst)
 		return usr_get_input_mpeg4(decoder, dst);
 	}
 }
+

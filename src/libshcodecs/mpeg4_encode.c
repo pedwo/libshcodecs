@@ -410,17 +410,16 @@ mpeg4_encode_picture (SHCodecs_Encoder *enc,
 
 	/* For all frames to encode */
 	while (1) {
-		m4iph_vpu_lock(enc->vpu);
-
 		/* Get the encoder input frame */
 		if (enc->input) {
 			cb_ret = enc->input(enc, enc->input_user_data);
 			if (cb_ret != 0) {
 				enc->error_return_code = cb_ret;
-				m4iph_vpu_unlock(enc->vpu);
 				return cb_ret;
 			}
 		}
+
+		m4iph_vpu_lock(enc->vpu);
 
 		/* Encode the frame */
 		rc = mpeg4_encode_frame(enc, stream_type, enc->addr_y, enc->addr_c);
