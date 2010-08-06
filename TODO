@@ -22,6 +22,29 @@ Encode
 	* check first frame of encoded video: is from previous video?
 	If so, clear frame data before starting encode.
 
+Decode MPEG4
+	* Decoding multiple MPEG4 streams in seperate threads often fails.
+
+Error handling
+	* Store a meaningful error code so you can easily see if it's just
+	a memory allocation problem due to the size/number of instances used
+	or an error with stream.
+
+Decoder testing
+	* Test with erroneous streams
+
+Decoder extract frame size
+	* The size of the frame is in the elementary stream. In order to
+	get this, you could create a decoder with the smallest frame size,
+	decode until you get a "Picture too large" error from the middleware,
+	and then re-initialise everything with the extracted size.
+
+Decoder frame size
+	* The hardware requires the decode output surface to consist of
+	whole macroblocks (i.e. a multiple of 16), but video streams do not
+	have to be this size. The decoder doesn't provide the size of the
+	video stream to the client.
+
 Tools
 -----
 
@@ -30,3 +53,8 @@ shcodecs-play
 	* print error if cannot init decoder (eg. no size given)
 
 	* handle float framerate values (eg. shcodecs-play -r 29.97)
+
+shcodecs-record
+	* If the encoder gets to the number of frames specified in the control
+	file, shcodecs-record stops recording but doesn't exit.
+
