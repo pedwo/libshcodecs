@@ -82,6 +82,8 @@ struct encode_data {
 	pthread_t thread;
 	int alive;
 
+	SHCodecs_Encoder *encoder;
+
 	char ctrl_filename[MAXPATHLEN];
 	APPLI_INFO ainfo;
 
@@ -111,7 +113,6 @@ struct private_data {
 	struct camera_data cameras[MAX_CAMERAS];
 
 	int nr_encoders;
-	SHCodecs_Encoder *encoders[MAX_ENCODERS];
 	struct encode_data encdata[MAX_ENCODERS];
 
 	int do_preview;
@@ -195,7 +196,7 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 		enc_c = enc_y + (encdata->enc_w * encdata->enc_h);
 
 		/* We are clipping, not scaling, as we need to perform a rotation,
-	   	but the VEU cannot do a rotate & scale at the same time. */
+		   but the VEU cannot do a rotate & scale at the same time. */
 		shveu_crop(pvt->veu, 1, 0, 0, encdata->enc_w, encdata->enc_h);
 		shveu_rescale(pvt->veu,
 			cap_y, cap_c,
@@ -343,7 +344,7 @@ int cleanup (void)
 				fprintf (stderr, "\tOK");
 			}
 		}
-		shcodecs_encoder_close(pvt->encoders[i]);
+		shcodecs_encoder_close(pvt->encdata[i].encoder);
 		close_output_file(pvt->encdata[i].output_fp);
 		framerate_destroy (pvt->encdata[i].enc_framerate);
 	}
@@ -394,10 +395,11 @@ struct camera_data * get_camera (char * devicename, int width, int height)
 
 void * encode_main (void * data)
 {
-	SHCodecs_Encoder * encoder = (SHCodecs_Encoder *)data;
+	struct encode_data *encdata = (struct encode_data *)data;
 	int ret = -1;
 
-	ret = shcodecs_encoder_run (encoder);
+	ret = shcodecs_encoder_run (encdata->encoder);
+	encdata->alive = 0;
 
 	return (void *)ret;
 }
@@ -411,6 +413,7 @@ int main(int argc, char *argv[])
 	int c, i=0;
 	long target_fps10;
 	unsigned long rotate_input;
+	int running = 1;
 
 	char * progname;
 	int show_version = 0;
@@ -481,8 +484,8 @@ int main(int argc, char *argv[])
 	}
 
 	if (optind >= argc) {
-	      usage (progname);
-	      goto exit_err;
+		usage (progname);
+		goto exit_err;
 	}
 
 	while (optind < argc) {
@@ -586,23 +589,23 @@ int main(int argc, char *argv[])
 			return -8;
 		}
 
-		pvt->encoders[i] = shcodecs_encoder_init(pvt->encdata[i].enc_w, pvt->encdata[i].enc_h, pvt->encdata[i].stream_type);
-		if (pvt->encoders[i] == NULL) {
+		pvt->encdata[i].encoder = shcodecs_encoder_init(pvt->encdata[i].enc_w, pvt->encdata[i].enc_h, pvt->encdata[i].stream_type);
+		if (pvt->encdata[i].encoder == NULL) {
 			fprintf(stderr, "shcodecs_encoder_init failed, exiting\n");
 			return -5;
 		}
-		shcodecs_encoder_set_input_callback(pvt->encoders[i], get_input, &pvt->encdata[i]);
-		shcodecs_encoder_set_output_callback(pvt->encoders[i], write_output, &pvt->encdata[i]);
-		shcodecs_encoder_set_input_release_callback(pvt->encoders[i], release_input_buf, &pvt->encdata[i]);
+		shcodecs_encoder_set_input_callback(pvt->encdata[i].encoder, get_input, &pvt->encdata[i]);
+		shcodecs_encoder_set_output_callback(pvt->encdata[i].encoder, write_output, &pvt->encdata[i]);
+		shcodecs_encoder_set_input_release_callback(pvt->encdata[i].encoder, release_input_buf, &pvt->encdata[i]);
 
-		return_code = ctrlfile_set_enc_param(pvt->encoders[i], pvt->encdata[i].ctrl_filename);
+		return_code = ctrlfile_set_enc_param(pvt->encdata[i].encoder, pvt->encdata[i].ctrl_filename);
 		if (return_code < 0) {
 			fprintf (stderr, "Problem with encoder params in control file!\n");
 			return -9;
 		}
 
-		//shcodecs_encoder_set_xpic_size(pvt->encoders[i], pvt->encdata[i].enc_w);
-		//shcodecs_encoder_set_ypic_size(pvt->encoders[i], pvt->encdata[i].enc_h);
+		//shcodecs_encoder_set_xpic_size(pvt->encdata[i].encoder, pvt->encdata[i].enc_w);
+		//shcodecs_encoder_set_ypic_size(pvt->encdata[i].encoder, pvt->encdata[i].enc_h);
 
 		pvt->encdata[i].alive = 1;
 	}
@@ -610,7 +613,7 @@ int main(int argc, char *argv[])
 	/* Set up framedropping */
 	fprintf (stderr, "\nTarget   @");
 	for (i=0; i < pvt->nr_encoders; i++) {
-		target_fps10 = shcodecs_encoder_get_frame_rate(pvt->encoders[i]);
+		target_fps10 = shcodecs_encoder_get_frame_rate(pvt->encdata[i].encoder);
 		fprintf (stderr, "\t%4.2f  ", target_fps10/10.0);
 
 		pvt->encdata[i].skipsize = 300 / target_fps10;
@@ -633,18 +636,23 @@ int main(int argc, char *argv[])
 	}
 
 	for (i=0; i < pvt->nr_encoders; i++) {
-		rc = pthread_create (&pvt->encdata[i].thread, NULL, encode_main, pvt->encoders[i]);
+		rc = pthread_create (&pvt->encdata[i].thread, NULL, encode_main, &pvt->encdata[i]);
 		if (rc)
 			fprintf (stderr, "Thread %d failed: %s\n", i, strerror(rc));
 	}
 
-	while (alive) {
+	while (running) {
 		fprintf (stderr, "Encoding @");
 		for (i=0; i < pvt->nr_encoders; i++) {
 			fprintf (stderr, "\t%4.2f  ", pvt->encdata[i].ifps);
 		}
 		fprintf (stderr, "\tFPS\r");
 		usleep (300000);
+
+		running = 0;
+		for (i=0; i < pvt->nr_encoders; i++) {
+			running |= pvt->encdata[i].alive;
+		}
 	}
 
 	rc = cleanup ();

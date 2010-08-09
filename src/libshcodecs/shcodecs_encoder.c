@@ -277,7 +277,6 @@ shcodecs_encoder_deferred_init (SHCodecs_Encoder * encoder)
 	return 0;
 
 err:
-	shcodecs_encoder_close(encoder);
 	return -1;
 }
 
