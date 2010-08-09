@@ -54,7 +54,3 @@ shcodecs-play
 
 	* handle float framerate values (eg. shcodecs-play -r 29.97)
 
-shcodecs-record
-	* If the encoder gets to the number of frames specified in the control
-	file, shcodecs-record stops recording but doesn't exit.
-
