@@ -338,18 +338,18 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 	input_buf.C_fmemp = pc;
 	extra_stream_buff = &enc->aud_buf_info;
 
-	/* Specify the input frame address */
-	rc = avcbe_set_image_pointer(enc->stream_info,
-				    &input_buf, enc->ldec, enc->ref1, 0);
-	if (rc != 0)
-		return vpu_err(enc, __func__, __LINE__, rc);
-
 	if (enc->frame_counter != 0) {
 		/* Restore stream context */
 		rc = avcbe_set_backup(enc->stream_info, &enc->backup_area);
 		if (rc != 0)
 			return vpu_err(enc, __func__, __LINE__, rc);
 	}
+
+	/* Specify the input frame address */
+	rc = avcbe_set_image_pointer(enc->stream_info,
+				    &input_buf, enc->ldec, enc->ref1, 0);
+	if (rc != 0)
+		return vpu_err(enc, __func__, __LINE__, rc);
 
 	/* Encode SPS and PPS for 1st frame */
 	if (enc->frame_counter == 0) {
