@@ -60,7 +60,6 @@ static SHCodecs_vpu *current_vpu = NULL;
 void *m4iph_vpu_open(int stream_buf_size)
 {
 	SHCodecs_vpu *vpu;
-	UIOMux *uiomux;
 	int ret;
 	void *virt;
 
@@ -254,6 +253,7 @@ void *m4iph_addr_to_virt(void *vpu_data, void *address)
  */
 long m4iph_sleep(void)
 {
+	volatile unsigned long *reg_base = current_vpu->uio_mmio.iomem;
 	SHCodecs_vpu *vpu = current_vpu;
 
 #ifdef DISABLE_INT
@@ -261,6 +261,10 @@ long m4iph_sleep(void)
 #else
 	uiomux_sleep(vpu->uiomux, UIOMUX_SH_VPU);
 #endif
+
+	/* Wait for the VPU to stop running */
+	while (reg_base[0x108/4] == 0) ;
+
 	m4iph_vpu4_int_handler();
 
 	return 0;
