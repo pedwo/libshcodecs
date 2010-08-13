@@ -45,6 +45,9 @@
 
 #include <uiomux/uiomux.h>
 #include <shveu/shveu.h>
+#ifdef HAVE_SHBEU
+#include <shbeu/shbeu.h>
+#endif
 #include <shcodecs/shcodecs_encoder.h>
 
 #include "avcbencsmp.h"
@@ -62,8 +65,11 @@
 /* Maximum number of encoders per camera */
 #define MAX_ENCODERS 8
 
+#define MAX_BLEND_INPUTS 2
+
 struct camera_data {
 	char * devicename;
+	int index;
 
 	/* Captured frame information */
 	capture *ceu;
@@ -118,7 +124,10 @@ struct private_data {
 	int do_preview;
 	DISPLAY *display;
 	SHVEU *veu;
-
+#ifdef HAVE_SHBEU
+	SHBEU *beu;
+	beu_surface_t beu_in[MAX_BLEND_INPUTS];
+#endif
 	int rotate_cap;
 };
 
@@ -163,7 +172,36 @@ struct private_data pvt_data;
 
 static int alive=1;
 
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 /*****************************************************************************/
+
+#ifdef HAVE_SHBEU
+static void blend(
+	SHBEU *beu,
+	DISPLAY *display,
+	beu_surface_t *overlay,
+	int nr_inputs)
+{
+	unsigned long bb_phys = display_get_back_buff_phys(display);
+	int lcd_h = display_get_height(display);
+	beu_surface_t dst;
+
+	/* Destination surface info */
+	dst.py = bb_phys;
+	dst.pitch = lcd_w;
+	dst.format = V4L2_PIX_FMT_RGB565;
+
+	if (nr_inputs == 3)
+		shbeu_blend(beu, &overlay[0], &overlay[1], &overlay[2], &dst);
+	else if (nr_inputs == 2)
+		shbeu_blend(beu, &overlay[0], &overlay[1], NULL, &dst);
+	else if (nr_inputs == 1)
+		shbeu_blend(beu, &overlay[0], NULL, NULL, &dst);
+
+	display_flip(display);
+}
+#endif
 
 /* Callback for frame capture */
 static void
@@ -179,6 +217,7 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 	unsigned long cap_y, cap_c;
 	int i;
 	int enc_alive = 0;
+	int nr_inputs;
 
 	cap_y = (unsigned long) frame_data;
 	cap_c = cap_y + (cam->cap_w * cam->cap_h);
@@ -221,6 +260,31 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 	}
 	cam->alive = enc_alive;
 
+#ifdef HAVE_SHBEU
+	if (pvt->do_preview && (cam->index < MAX_BLEND_INPUTS)) {
+		beu_surface_t * beu_input = &pvt->beu_in[cam->index];
+
+		/* Copy the camera image to a BEU input buffer */
+		pthread_mutex_lock(&mutex);
+		shveu_crop(pvt->veu, 1, 0, 0, beu_input->width, beu_input->height);
+		shveu_rescale(pvt->veu,
+			cap_y, cap_c,
+			cam->cap_w, cam->cap_h, V4L2_PIX_FMT_NV12,
+			beu_input->py, beu_input->pc,
+			beu_input->width, beu_input->height, beu_input->format);
+		pthread_mutex_unlock(&mutex);
+	}
+
+	capture_queue_buffer (cam->ceu, (void *)cap_y);
+
+	/* Blend when processing the camera with the smallest frames (assume the last camera) */
+	nr_inputs = (pvt->nr_cameras > MAX_BLEND_INPUTS) ? MAX_BLEND_INPUTS : pvt->nr_cameras;
+	if (pvt->do_preview && (cam->index == nr_inputs-1)) {
+		pthread_mutex_lock(&mutex);
+		blend (pvt->beu, pvt->display, &pvt->beu_in[0], nr_inputs);
+		pthread_mutex_unlock(&mutex);
+	}
+#else
 	if (cam == pvt->encdata[0].camera && pvt->do_preview) {
 		/* Use the VEU to scale the capture buffer to the frame buffer */
 		display_update(pvt->display,
@@ -230,6 +294,7 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 	}
 
 	capture_queue_buffer (cam->ceu, (void *)cap_y);
+#endif
 
 	cam->captured_frames++;
 }
@@ -350,8 +415,23 @@ int cleanup (void)
 	}
 	fprintf (stderr, "\n");
 
-	if (pvt->do_preview)
+	if (pvt->do_preview) {
+		int nr_inputs = (pvt->nr_cameras > MAX_BLEND_INPUTS) ? MAX_BLEND_INPUTS : pvt->nr_cameras;
+		void * user;
+		int size;
+
 		display_close(pvt->display);
+
+#ifdef HAVE_SHBEU
+		for (i=0; i < nr_inputs; i++) {
+			size = (pvt->beu_in[i].pitch * pvt->beu_in[i].height * 3) / 2;
+			user = uiomux_phys_to_virt(pvt->uiomux, UIOMUX_SH_BEU, pvt->beu_in[i].py);
+			uiomux_free(pvt->uiomux, UIOMUX_SH_BEU, user, size);
+		}
+
+		shbeu_close(pvt->beu);
+#endif
+	}
 	shveu_close(pvt->veu);
 
 	uiomux_close (pvt->uiomux);
@@ -387,6 +467,7 @@ struct camera_data * get_camera (char * devicename, int width, int height)
 	pvt->cameras[i].devicename = devicename;
 	pvt->cameras[i].cap_w = width;
 	pvt->cameras[i].cap_h = height;
+	pvt->cameras[i].index = i;
 
 	pvt->nr_cameras = i+1;
 
@@ -403,6 +484,80 @@ void * encode_main (void * data)
 
 	return (void *)ret;
 }
+
+#ifdef HAVE_SHBEU
+int create_alpha(UIOMux *uiomux, beu_surface_t *s, int i, int w, int h)
+{
+	unsigned char *alpha;
+	int tmp;
+	int size;
+	int x, y;
+
+	size = w * h;
+	alpha = uiomux_malloc (uiomux, UIOMUX_SH_BEU, size, 32);
+	if (!alpha) {
+		perror("uiomux_malloc");
+		return -1;
+	}
+	s->pa = uiomux_virt_to_phys (uiomux, UIOMUX_SH_BEU, alpha);
+
+	for (y=0; y<h; y++) {
+		for (x=0; x<w; x++) {
+			tmp = (2 * 255 * (w/2- abs(x - w/2))) / (w/2);
+			if (tmp > 255) tmp = 255;
+			*alpha++ = (unsigned char)tmp;
+		}
+	}
+}
+
+int setup_input_surface(DISPLAY *disp, UIOMux *uiomux, beu_surface_t *s, int i, int w, int h)
+{
+	float lcd_aspect, cam_aspect;
+	void *user;
+	int size;
+	int lcd_w = display_get_width(disp);
+	int lcd_h = display_get_height(disp);
+
+	/* Limit the size of the images used in blend to the LCD */
+	lcd_aspect = (float)lcd_w / lcd_h;
+	cam_aspect = (float)w / h;
+
+	if (cam_aspect > lcd_aspect) {
+		if (w > lcd_w) w = lcd_w;
+		h = (int) ((float)w / cam_aspect);
+	} else {
+		if (h > lcd_h) h = lcd_h;
+		w = (int)((float)h * cam_aspect);
+	}
+
+	/* VEU size limitation */
+	w = w - (w%4);
+	h = h - (h%4);
+
+	size = (w * h * 3)/2;
+	user = uiomux_malloc (uiomux, UIOMUX_SH_BEU, size, 32);
+	if (!user) {
+		perror("uiomux_malloc");
+		return -1;
+	}
+
+	s->width = w;
+	s->height = h;
+	s->pitch = w;
+	s->py = uiomux_virt_to_phys (uiomux, UIOMUX_SH_BEU, user);
+	s->pc = s->py + (w * h);
+	s->pa = 0;
+	s->alpha = 255 - i*70;	/* 1st layer opaque, others semi-transparent */
+	s->x = 0;
+	s->y = 0;
+	s->format = V4L2_PIX_FMT_NV12;
+
+	if (i > 0)
+		create_alpha(uiomux, s, i, w, h);
+
+	return 0;
+}
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -496,6 +651,26 @@ int main(int argc, char *argv[])
 
 	pvt->uiomux = uiomux_open ();
 
+	/* VEU initialisation */
+	if ((pvt->veu = shveu_open()) == 0) {
+		fprintf (stderr, "Could not open VEU, exiting\n");
+	}
+
+	if (pvt->do_preview) {
+		pvt->display = display_open();
+		if (!pvt->display) {
+			return -5;
+		}
+
+#ifdef HAVE_SHBEU
+		pvt->beu = shbeu_open();
+		if (!pvt->beu) {
+			return -1;
+		}
+#endif
+	}
+
+
 	for (i=0; i < pvt->nr_encoders; i++) {
 		if ( (strcmp(pvt->encdata[i].ctrl_filename, "-") == 0) ||
 				(pvt->encdata[i].ctrl_filename[0] == '\0') ){
@@ -537,22 +712,20 @@ int main(int argc, char *argv[])
 			return -4;
 		}
 		debug_printf("Camera %d resolution:  %dx%d\n", i, pvt->cameras[i].cap_w, pvt->cameras[i].cap_h);
+
+#ifdef HAVE_SHBEU
+		/* BEU input */
+		if (i < MAX_BLEND_INPUTS) {
+			if (setup_input_surface(pvt->display, pvt->uiomux, &pvt->beu_in[i], i, pvt->cameras[i].cap_w, pvt->cameras[i].cap_h) < 0) {
+				fprintf(stderr, "Failed to allocate UIO memory (BEU).\n");
+				return -1;
+			}
+		}
+#endif
 	}
 
 	signal (SIGINT, sig_handler);
 	signal (SIGPIPE, sig_handler);
-
-	/* VEU initialisation */
-	if ((pvt->veu = shveu_open()) == 0) {
-		fprintf (stderr, "Could not open VEU, exiting\n");
-	}
-
-	if (pvt->do_preview) {
-		pvt->display = display_open();
-		if (!pvt->display) {
-			return -5;
-		}
-	}
 
 	fprintf (stderr, "\nEncoders\n");
 	fprintf (stderr, "--------\n");

@@ -34,8 +34,8 @@ shcodecs_record_SOURCES = \
 	ControlFileUtil.c \
 	avcbeinputuser.c
 
-shcodecs_record_CFLAGS = $(SHVEU_CFLAGS) $(UIOMUX_CFLAGS)
-shcodecs_record_LDADD = $(SHVEU_LIBS) $(UIOMUX_LIBS) -lrt -lpthread $(SHCODECS_LIBS)
+shcodecs_record_CFLAGS = $(SHVEU_CFLAGS) $(SHBEU_CFLAGS) $(UIOMUX_CFLAGS)
+shcodecs_record_LDADD = $(SHVEU_LIBS) $(SHBEU_LIBS) $(UIOMUX_LIBS) -lrt -lpthread $(SHCODECS_LIBS)
 
 
 shcodecs_enc_SOURCES =  \

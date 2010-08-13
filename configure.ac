@@ -130,6 +130,17 @@ dnl
 PKG_CHECK_MODULES(SHVEU, shveu >= 1.4.0)
 
 
+dnl
+dnl Check for libshbeu
+dnl
+HAVE_SHBEU=no
+PKG_CHECK_MODULES(SHBEU, shbeu >= 0.0.1, HAVE_SHBEU="yes")
+if test "x$HAVE_SHBEU" = "xyes" ; then
+  AC_DEFINE(HAVE_SHBEU, [], [Define to 1 if shbeu is available])
+fi
+AM_CONDITIONAL(HAVE_SHBEU, [test "x$HAVE_SHBEU" = "xyes"])
+
+
 # check for getopt in a separate library
 HAVE_GETOPT=no
 AC_CHECK_LIB(getopt, getopt, HAVE_GETOPT="yes")
