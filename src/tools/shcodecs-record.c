@@ -184,7 +184,7 @@ static void blend(
 	int nr_inputs)
 {
 	unsigned long bb_phys = display_get_back_buff_phys(display);
-	int lcd_h = display_get_height(display);
+	int lcd_w = display_get_width(display);
 	beu_surface_t dst;
 
 	/* Destination surface info */
