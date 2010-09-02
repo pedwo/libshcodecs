@@ -343,15 +343,6 @@ static int stream_init(SHCodecs_Decoder * decoder)
 
 	m4iph_vpu_unlock(decoder->vpu);
 
-	{
-		int z;
-		unsigned char *ctx = decoder->context;
-		debug_printf ("%s: context (len=%d, for dec %dx%d):\n", __func__, decoder->context_size, decoder->si_max_fx, decoder->si_max_fy);
-		for (z=0; z<decoder->context_size; z+=4)
-			debug_printf("%02x%02x%02x%02x ", ctx[z+0], ctx[z+1], ctx[z+2], ctx[z+3]);
-		debug_printf ("\n");
-	}
-
 	if (rc != 0)
 		return vpu_err(decoder, __func__, __LINE__, rc);
 
@@ -513,7 +504,7 @@ static int decode_frame(SHCodecs_Decoder * decoder)
 			if (ret < 0)
 				return vpu_err(decoder, __func__, __LINE__, ret);
 		} else {
-			unsigned char *input = decoder->input_buf + decoder->input_pos;;
+			unsigned char *input = decoder->input_buf + decoder->input_pos;
 			long hosei = 0;
 			int z;
 
