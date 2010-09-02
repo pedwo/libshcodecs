@@ -121,7 +121,7 @@ AC_SUBST(VPU4_ENC_LIBS)
 dnl
 dnl Check for libuiomux
 dnl
-PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.1.0)
+PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.3.0)
 
 
 dnl
