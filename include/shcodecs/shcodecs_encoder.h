@@ -77,7 +77,7 @@ shcodecs_encoder_close (SHCodecs_Encoder * encoder);
 /**
  * Set the callback for libshcodecs to call when encoded data is available.
  * \param encoder The SHCodecs_Encoder* handle
- * \param encodec_cb The callback function
+ * \param output_cb The callback function
  * \param user_data Additional data to pass to the callback function
  */
 int
@@ -168,7 +168,7 @@ shcodecs_encoder_run (SHCodecs_Encoder * encoder);
 /**
  * Run multiple encoders.
  * \param encoders An array of  SHCodecs_Encoder* handles.
- * \param nr_encoers The number of elements in the \a encoders array.
+ * \param nr_encoders The number of elements in the \a encoders array.
  * \retval 0 Success
  */
 int
@@ -187,6 +187,7 @@ int shcodecs_encoder_get_width (SHCodecs_Encoder * encoder);
  * Note that this function can only be called during intialization,
  * ie. before the first call to shcodecs_encoder_run().
  * \param encoder The SHCodecs_Encoder* handle
+ * \param width The width in pixels
  * \returns The width in pixels
  * \retval -1 \a encoder invalid
  * \retval -2 \a encoder already initialized.
@@ -207,6 +208,7 @@ int shcodecs_encoder_get_height (SHCodecs_Encoder * encoder);
  * Note that this function can only be called during intialization,
  * ie. before the first call to shcodecs_encoder_run().
  * \param encoder The SHCodecs_Encoder* handle
+ * \param height The height in pixels
  * \returns The height in pixels
  * \retval -1 \a encoder invalid
  * \retval -2 \a encoder already initialized.
@@ -245,8 +247,8 @@ shcodecs_encoder_get_frame_num_delta(SHCodecs_Encoder *encoder);
  * Get the physical address of input data.
  * This function MUST be called from within an SHCodecs_Encoder_Input callback.
  * \param encoder The SHCodecs_Encoder* handle
- * \param y_input Location to store physical address of the Y plane
- * \param c_input Location to store physical address of the CbCr plane
+ * \param addr_y Location to store physical address of the Y plane
+ * \param addr_C Location to store physical address of the CbCr plane
  * \retval 0 Success
  * \retval -1 \a encoder invalid
  */
@@ -258,8 +260,8 @@ shcodecs_encoder_get_input_physical_addr (SHCodecs_Encoder * encoder,
  * Set the physical address of input data.
  * This function must ONLY be called from within an SHCodecs_Encoder_Input callback.
  * \param encoder The SHCodecs_Encoder* handle
- * \param y_input Pointer to the Y plane of input data
- * \param c_input Pointer to the CbCr plane of input data
+ * \param addr_y Pointer to the Y plane of input data
+ * \param addr_C Pointer to the CbCr plane of input data
  * \retval -1 \a encoder invalid
  */
 int

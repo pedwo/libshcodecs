@@ -55,7 +55,7 @@ shcodecs_decoder_close (SHCodecs_Decoder * decoder);
 /**
  * Set the callback for libshcodecs to call when decoded data is available.
  * \param decoder The SHCodecs_Decoder* handle
- * \param decodec_cb The callback function
+ * \param decoded_cb The callback function
  * \param user_data Additional data to pass to the callback function
  */
 int
