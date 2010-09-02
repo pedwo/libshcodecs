@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <uiomux/uiomux.h>
+#include <shcodecs/shcodecs_common.h>
 #include <m4iph_vpu4.h>
 #include <avcbd.h>
 #include <avcbe.h>
@@ -35,8 +36,9 @@
 #include "m4driverif.h"
 
 /* Minimum size as this buffer is used for data other than encoded frames */
-/* TODO min size has not been verified, just takem from sample code */
+/* TODO min size has not been verified, just taken from sample code */
 #define MIN_STREAM_BUFF_SIZE (160000*4)
+#define minCR 4
 
 struct uio_map {
 	unsigned long address;
@@ -60,7 +62,6 @@ static SHCodecs_vpu *current_vpu = NULL;
 void *m4iph_vpu_open(int stream_buf_size)
 {
 	SHCodecs_vpu *vpu;
-	UIOMux *uiomux;
 	int ret;
 	void *virt;
 
@@ -79,14 +80,15 @@ void *m4iph_vpu_open(int stream_buf_size)
 	if (!ret)
 		goto err;
 
-	/* Note: This must be done outside vpu lock as UIOMux malloc also locks the vpu */
-	vpu->work_buff_size = (1280 * 720 * 3) / 8;
+	/* Work buffer must fit largest NAL/VOP. Assume minCR (minimum compression
+	   ratio) at this size is 4. */
+	vpu->work_buff_size = SHCODECS_MAX_FX * SHCODECS_MAX_FY / minCR;
+
+	/* Work buffer is also used for other encoder data; apply minimum size constraint */
 	if (vpu->work_buff_size < MIN_STREAM_BUFF_SIZE)
 		vpu->work_buff_size = MIN_STREAM_BUFF_SIZE;
 
-	/* Make size a multiple of 32 */
-	vpu->work_buff_size = (vpu->work_buff_size + 31) & ~31;
-
+	/* Note: This must be done outside vpu lock as UIOMux malloc also locks the vpu */
 	virt = uiomux_malloc_shared (vpu->uiomux, UIOMUX_SH_VPU, vpu->work_buff_size, 32);
 	vpu->work_buff = (void *)uiomux_virt_to_phys (vpu->uiomux, UIOMUX_SH_VPU, virt);
 	if (!vpu->work_buff)
