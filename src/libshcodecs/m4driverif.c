@@ -28,11 +28,17 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <uiomux/uiomux.h>
+#include <shcodecs/shcodecs_common.h>
 #include <m4iph_vpu4.h>
 #include <avcbd.h>
 #include <avcbe.h>
 #include "avcbd_optionaldata.h"
 #include "m4driverif.h"
+
+/* Minimum size as this buffer is used for data other than encoded frames */
+/* TODO min size has not been verified, just taken from sample code */
+#define MIN_STREAM_BUFF_SIZE (160000*4)
+#define minCR 4
 
 struct uio_map {
 	unsigned long address;
@@ -45,7 +51,6 @@ typedef struct _SHCodecs_vpu {
 	UIOMux *uiomux;
 	struct uio_map uio_mmio;
 
-	int num_codecs;
 	M4IPH_VPU4_INIT_OPTION params;
 	unsigned long work_buff_size;
 	void *work_buff;
@@ -53,49 +58,41 @@ typedef struct _SHCodecs_vpu {
 
 /* The current instance in use */
 static SHCodecs_vpu *current_vpu = NULL;
-static int vpu_initialised = 0;
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *m4iph_vpu_open(int stream_buf_size)
 {
-	SHCodecs_vpu *vpu = current_vpu;
-	int ret = 0;
+	SHCodecs_vpu *vpu;
+	int ret;
+	void *virt;
 
-	pthread_mutex_lock(&mutex);
+	vpu = calloc(1, sizeof(*vpu));
+	if (!vpu)
+		return NULL;
 
-	if (!vpu_initialised) {
+	vpu->uiomux = uiomux_open();
+	if (!vpu->uiomux)
+		goto err;
 
-		vpu = calloc(1, sizeof(*vpu));
-		if (!vpu) {
-			pthread_mutex_unlock(&mutex);
-			return NULL;
-		}
-		current_vpu = vpu;
+	ret = uiomux_get_mmio (vpu->uiomux, UIOMUX_SH_VPU,
+		&vpu->uio_mmio.address,
+		&vpu->uio_mmio.size,
+		&vpu->uio_mmio.iomem);
+	if (!ret)
+		goto err;
 
-		vpu->num_codecs = 0;
-		vpu->work_buff_size = 0;
+	/* Work buffer must fit largest NAL/VOP. Assume minCR (minimum compression
+	   ratio) at this size is 4. */
+	vpu->work_buff_size = SHCODECS_MAX_FX * SHCODECS_MAX_FY / minCR;
 
-		vpu->uiomux = uiomux_open();
-		if (!vpu->uiomux)
-			goto err;
-
-		ret = uiomux_get_mmio (vpu->uiomux, UIOMUX_SH_VPU,
-			&vpu->uio_mmio.address,
-			&vpu->uio_mmio.size,
-			&vpu->uio_mmio.iomem);
-		if (!ret)
-			goto err;
-	}
+	/* Work buffer is also used for other encoder data; apply minimum size constraint */
+	if (vpu->work_buff_size < MIN_STREAM_BUFF_SIZE)
+		vpu->work_buff_size = MIN_STREAM_BUFF_SIZE;
 
 	/* Note: This must be done outside vpu lock as UIOMux malloc also locks the vpu */
-	if (vpu->work_buff_size < (unsigned long)stream_buf_size) {
-		vpu->work_buff_size = stream_buf_size;
-		vpu->work_buff = m4iph_sdr_malloc(vpu, stream_buf_size, 32);
-		if (!vpu->work_buff)
-			goto err;
-	}
-
-	vpu->num_codecs++;
+	virt = uiomux_malloc_shared (vpu->uiomux, UIOMUX_SH_VPU, vpu->work_buff_size, 32);
+	vpu->work_buff = (void *)uiomux_virt_to_phys (vpu->uiomux, UIOMUX_SH_VPU, virt);
+	if (!vpu->work_buff)
+		goto err;
 
 	vpu->params.m4iph_vpu_base_address = vpu->uio_mmio.address;
 
@@ -122,17 +119,10 @@ void *m4iph_vpu_open(int stream_buf_size)
 	if (ret)
 		goto err;
 
-	vpu_initialised = 1;
-
-	pthread_mutex_unlock(&mutex);
 	return vpu;
 
 err:
-	if (vpu->uiomux)
-		uiomux_close(vpu->uiomux);
-	vpu->uiomux = NULL;
-	vpu_initialised = 0;
-	pthread_mutex_unlock(&mutex);
+	m4iph_vpu_close(vpu);
 	return NULL;
 }
 
@@ -140,16 +130,11 @@ void m4iph_vpu_close(void *vpu_data)
 {
 	SHCodecs_vpu *vpu = (SHCodecs_vpu *)vpu_data;
 
-	pthread_mutex_lock(&mutex);
 	if (vpu) {
-		if (--vpu->num_codecs == 0) {
+		if (vpu->uiomux)
 			uiomux_close(vpu->uiomux);
-			vpu->uiomux = NULL;
-			vpu_initialised = 0;
-			free(vpu);
-		}
+		free(vpu);
 	}
-	pthread_mutex_unlock(&mutex);
 }
 
 void m4iph_vpu_lock(void *vpu_data)
@@ -162,6 +147,7 @@ void m4iph_vpu_lock(void *vpu_data)
 void m4iph_vpu_unlock(void *vpu_data)
 {
 	SHCodecs_vpu *vpu = (SHCodecs_vpu *)vpu_data;
+	current_vpu = NULL;
 	uiomux_unlock (vpu->uiomux, UIOMUX_SH_VPU);
 }
 
