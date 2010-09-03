@@ -1,0 +1,106 @@
+libshcodecs 1.3.0 Release
+=========================
+
+libshcodecs is a library for controlling SH-Mobile hardware codecs.
+
+The [SH-Mobile][0] processor series includes a hardware video processing
+unit that supports MPEG-4 and H.264 encoding and decoding.
+libshcodecs is available under the terms of the GNU LGPL.
+
+The source archive, and more information about the library are available from:
+
+	https://oss.renesas.com/modules/document/?libshcodecs
+
+New in this release
+===================
+
+This release fixes a number of issues with running multiple instances and adds
+the ability to run encoders and decoders in separate processes.
+
+The tools have been modified to use the BEU hardware to overlay one camera
+preview on top of another.
+
+Details
+-------
+
+This release includes the following changes since version 1.2.0:
+
+Phil Edworthy (41):
+      Merge branch 'shm'
+      Recent changes require UIOMux 1.3.0
+      Fix warnings
+      docs: Fix several doxygen comments
+      Clean up work buffer size calculation
+      Revert "Work around UIOMux problem with interrupts."
+      tools: Fix BEU blend code
+      tools: added 2nd camera overlay (using BEU) to record
+      Merge branch 'master' into shm
+      Work around UIOMux problem with interrupts.
+      enc: Fix calling order for restoring context (H.264)
+      Merge branch 'master' into shm
+      tools: Fix problem when record stops.
+      TODO: Added a bunch of things that need to be done
+      enc: If the deferred init fails, don't close the encoder.
+      Use new UIOmux shared mem for stream buffer.
+      VPU locking should now be fixed.
+      dec: Changes to help identify a problem with parallel decoding
+      Minor clean up for last patch
+      Fix decoder VPU locking
+      tools: Add real-time library to shcodecs-cap
+      Pass vpu handle for all vpu functions.
+      enc: MPEG4: Fix load of vpu state.
+      enc: Removed duplicate definitions
+      enc: Fix build when not using BVOPs
+      dec: When searching for a VOP, don't bail out if it fails.
+      dec: Debug messages was linking against a different debug fn
+      dec: Fix included headers for debug messages
+      dec: Use debug fn rather than conditional code
+      dec: Fix bug with var reuse
+      dec: Changed var names to something a bit more readable
+      dec: Free memory already allocated if init fails
+      dec: MPEG4: Remove filtered frame output
+      dec: Fix VPU locking when there is a decod error
+      General tidy up
+      dec: Remove some MPEG4 junk
+      dec: Whitespace/formating changes
+      dec: Minor tidy up
+      Release 1.2.0
+      enc: Fix VUI frame rate data
+
+ TODO                                  |   24 ++
+ configure.ac                          |   13 +-
+ data/k264-v4l2-720p-stream.ctl        |    2 +-
+ data/k264-v4l2-cif-stream.ctl         |    2 +-
+ data/k264-v4l2-d1-stream.ctl          |    2 +-
+ data/k264-v4l2-stream.ctl             |    2 +-
+ data/k264-v4l2-vga-stream.ctl         |    2 +-
+ include/shcodecs/shcodecs_decoder.h   |    5 +-
+ include/shcodecs/shcodecs_encoder.h   |   17 +-
+ src/libshcodecs/Android.mk            |    2 +-
+ src/libshcodecs/Makefile.am           |    9 +-
+ src/libshcodecs/Mpeg4vdec.h           |  217 -----------
+ src/libshcodecs/Version_script.in     |    1 -
+ src/libshcodecs/avcbd_inner_typedef.h |  416 --------------------
+ src/libshcodecs/decoder_private.h     |  119 ++-----
+ src/libshcodecs/encoder_private.h     |   47 +---
+ src/libshcodecs/h264_encode.c         |   24 +-
+ src/libshcodecs/m4driverif.c          |  147 ++++----
+ src/libshcodecs/m4driverif.h          |   14 +-
+ src/libshcodecs/m4vsd_h263dec.h       |  414 --------------------
+ src/libshcodecs/m4vse_api_sub.h       |   80 ----
+ src/libshcodecs/mpeg4_encode.c        |   40 +--
+ src/libshcodecs/property_accessors.c  |   23 +-
+ src/libshcodecs/sh7722_vpu.h          |  136 -------
+ src/libshcodecs/shcodecs_decoder.c    |  686 +++++++++++++++------------------
+ src/libshcodecs/shcodecs_encoder.c    |   53 +--
+ src/tools/Makefile.am                 |    6 +-
+ src/tools/shcodecs-record.c           |  245 ++++++++++--
+ 28 files changed, 739 insertions(+), 2009 deletions(-)
+ delete mode 100644 src/libshcodecs/Mpeg4vdec.h
+ delete mode 100644 src/libshcodecs/avcbd_inner_typedef.h
+ delete mode 100644 src/libshcodecs/m4vsd_h263dec.h
+ delete mode 100644 src/libshcodecs/m4vse_api_sub.h
+ delete mode 100644 src/libshcodecs/sh7722_vpu.h
+
+[0]: http://www.renesas.com/fmwk.jsp?cnt=sh_mobile_family_landing.jsp&fp=/products/mpumcu/sh_mobile/
+
