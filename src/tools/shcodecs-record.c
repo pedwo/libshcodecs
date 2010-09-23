@@ -75,13 +75,9 @@ struct camera_data {
 	capture *ceu;
 	unsigned long cap_w;
 	unsigned long cap_h;
-	int captured_frames;
 
 	pthread_t capture_thread;
 	int alive;
-
-	struct Queue * captured_queue;
-	pthread_mutex_t capture_start_mutex;
 };
 
 struct encode_data {
@@ -295,8 +291,6 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 
 	capture_queue_buffer (cam->ceu, (void *)cap_y);
 #endif
-
-	cam->captured_frames++;
 }
 
 void *capture_main(void *data)
