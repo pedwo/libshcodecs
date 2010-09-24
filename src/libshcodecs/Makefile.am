@@ -34,6 +34,6 @@ libshcodecs_la_SOURCES = \
 	mpeg4_encode.c \
 	QuantMatrix.c
 
-libshcodecs_la_CFLAGS = -DSH -DVPU4=1 -DANNEX_B
+libshcodecs_la_CFLAGS = -DSH -DVPU4=1 -DANNEX_B $(UIOMUX_CFLAGS)
 libshcodecs_la_LDFLAGS = -version-info @SHARED_VERSION_INFO@ @SHLIB_VERSION_ARG@
 libshcodecs_la_LIBADD = -lstdc++ $(VPU4_DEC_LIBS) $(VPU4_ENC_LIBS) $(UIOMUX_LIBS) -lm
