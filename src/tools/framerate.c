@@ -123,7 +123,7 @@ int framerate_destroy (struct framerate * framerate)
 	return ret;
 }
 
-long framerate_elapsed_time (struct framerate * framerate)
+uint64_t framerate_elapsed_time (struct framerate * framerate)
 {
 	if (framerate == NULL) return -1;
 
@@ -159,7 +159,7 @@ double framerate_instantaneous_fps (struct framerate * framerate)
 }
 
 /* Total microseconds elapsed */
-static long
+static uint64_t
 framerate_elapsed_us (struct framerate * framerate)
 {
 	struct timespec curr;
@@ -176,12 +176,12 @@ framerate_elapsed_us (struct framerate * framerate)
 		nsecs += N_SEC_PER_SEC;
 	}
 
-	return (secs*U_SEC_PER_SEC) + nsecs/1000;
+	return ((uint64_t)secs*U_SEC_PER_SEC) + nsecs/1000;
 }
 
 int framerate_mark (struct framerate * framerate)
 {
-	long prev_elapsed_us;
+	uint64_t prev_elapsed_us;
 
 	if (framerate == NULL) return -1;
 
@@ -209,7 +209,7 @@ framerate_wait (struct framerate * framerate)
 		handle_error("read");
 
 #else
-	long expected, delta;
+	uint64_t expected, delta;
 
 	if (framerate == NULL) return 0;
 
@@ -217,7 +217,7 @@ framerate_wait (struct framerate * framerate)
 	delta = expected - framerate_elapsed_us (framerate);
 
 	if (delta > 0) {
-		usleep (delta);
+		usleep ((long)delta);
 		exp = 1;
 	} else {
 		exp = 1 + (-delta) / framerate->frame_us;

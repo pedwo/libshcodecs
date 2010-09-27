@@ -30,8 +30,8 @@ struct framerate {
 	int nr_handled;
 	int nr_dropped;
 	struct timespec start;
-	long total_elapsed_us;
-	long curr_elapsed_us;
+	uint64_t total_elapsed_us;
+	uint64_t curr_elapsed_us;
 	double fps;
 	double prev_fps;
 
@@ -60,7 +60,7 @@ int framerate_mark (struct framerate * framerate);
 uint64_t framerate_wait (struct framerate * framerate);
 
 /* Time in microseconds since calling framerate_new_*() */
-long framerate_elapsed_time (struct framerate * framerate);
+uint64_t framerate_elapsed_time (struct framerate * framerate);
 
 /* Mean average FPS over the entire elapsed time */
 double framerate_mean_fps (struct framerate * framerate);
