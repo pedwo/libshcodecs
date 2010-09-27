@@ -709,7 +709,7 @@ int main(int argc, char *argv[])
 
 #ifdef HAVE_SHBEU
 		/* BEU input */
-		if (i < MAX_BLEND_INPUTS) {
+		if (pvt->do_preview && (i < MAX_BLEND_INPUTS)) {
 			if (setup_input_surface(pvt->display, pvt->uiomux, &pvt->beu_in[i], i, pvt->cameras[i].cap_w, pvt->cameras[i].cap_h) < 0) {
 				fprintf(stderr, "Failed to allocate UIO memory (BEU).\n");
 				return -1;
