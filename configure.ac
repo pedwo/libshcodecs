@@ -133,12 +133,21 @@ PKG_CHECK_MODULES(SHVEU, shveu >= 1.4.0)
 dnl
 dnl Check for libshbeu
 dnl
-HAVE_SHBEU=no
-PKG_CHECK_MODULES(SHBEU, shbeu >= 0.0.1, HAVE_SHBEU="yes")
-if test "x$HAVE_SHBEU" = "xyes" ; then
-  AC_DEFINE(HAVE_SHBEU, [], [Define to 1 if shbeu is available])
+AC_ARG_ENABLE(beu,
+     [  --enable-beu		  enable BEU ])
+
+if test "${enable_beu}" = "no" ; then
+    HAVE_SHBEU=no
+else
+    PKG_CHECK_MODULES(SHBEU, shbeu >= 0.0.1, HAVE_SHBEU="yes", HAVE_SHBEU="no")
+
+    if test "$HAVE_SHBEU" = "yes" ; then
+	AC_DEFINE(HAVE_SHBEU, [], [Define to 1 if shbeu is available])
+    elif test "${enable_beu}" = "yes"; then
+    	AC_MSG_ERROR([can't find libshbeu])
+    fi
 fi
-AM_CONDITIONAL(HAVE_SHBEU, [test "x$HAVE_SHBEU" = "xyes"])
+AM_CONDITIONAL(HAVE_SHBEU, [test "$HAVE_SHBEU" = "yes"])
 
 
 # check for getopt in a separate library
@@ -293,7 +302,7 @@ AC_MSG_RESULT([
   General configuration:
 
     Experimental code: ........... ${ac_enable_experimental}
-    libshveu support: ............ ${SHVEU_SUPPORT}
+    libshbeu support: ............ ${HAVE_SHBEU}
 
   Installation paths:
 
