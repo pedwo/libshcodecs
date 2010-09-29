@@ -137,7 +137,7 @@ h264_encode_init (SHCodecs_Encoder *enc, long stream_type)
 
 	/* Set default values for the parameters */
 	m4iph_vpu_lock(enc->vpu);
-	rc = avcbe_set_default_param(stream_type, AVCBE_RATE_NORMAL,
+	rc = avcbe_set_default_param(stream_type, AVCBE_RATE_NO_SKIP,
 				    &(enc->encoding_property),
 				    (void *)&(enc->other_options_h264));
 	m4iph_vpu_unlock(enc->vpu);
