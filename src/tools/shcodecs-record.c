@@ -388,7 +388,7 @@ int cleanup (void)
 	/* Display mean frame rate */
 	fprintf (stderr, "Encoded  @");
 	for (i=0; i < pvt->nr_encoders; i++) {
-		fprintf (stderr, "\t%4.2f  ", pvt->encdata[i].mfps);
+		fprintf (stderr, "\t%6.2f  ", pvt->encdata[i].mfps);
 	}
 	fprintf (stderr, "\tFPS\n");
 
@@ -781,7 +781,7 @@ int main(int argc, char *argv[])
 	fprintf (stderr, "\nTarget   @");
 	for (i=0; i < pvt->nr_encoders; i++) {
 		target_fps10 = shcodecs_encoder_get_frame_rate(pvt->encdata[i].encoder);
-		fprintf (stderr, "\t%4.2f  ", target_fps10/10.0);
+		fprintf (stderr, "\t%6.2f  ", target_fps10/10.0);
 
 		pvt->encdata[i].skipsize = 300 / target_fps10;
 		pvt->encdata[i].skipcount = 0;
@@ -811,7 +811,7 @@ int main(int argc, char *argv[])
 	while (running) {
 		fprintf (stderr, "Encoding @");
 		for (i=0; i < pvt->nr_encoders; i++) {
-			fprintf (stderr, "\t%4.2f  ", pvt->encdata[i].ifps);
+			fprintf (stderr, "\t%6.2f  ", pvt->encdata[i].ifps);
 		}
 		fprintf (stderr, "\tFPS\r");
 		usleep (300000);
