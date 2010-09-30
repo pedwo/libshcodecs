@@ -158,6 +158,34 @@ double framerate_instantaneous_fps (struct framerate * framerate)
 	return curr_fps;
 }
 
+double framerate_mean_bps (struct framerate * framerate)
+{
+	if (framerate == NULL) return -1.0;
+
+	return (double) 8 * framerate->total_bytes * U_SEC_PER_SEC /
+					framerate->total_elapsed_us;
+}
+
+double framerate_instantaneous_bps (struct framerate * framerate)
+{
+	double curr_bps;
+
+	if (framerate == NULL) return -1.0;
+
+	if (framerate->curr_elapsed_us == 0)
+		return 0.0;
+
+	if (framerate->curr_elapsed_us > 1000) {
+		curr_bps = (double)8 * framerate->curr_bytes * U_SEC_PER_SEC/framerate->curr_elapsed_us;
+	} else {
+		curr_bps = framerate->prev_bps;
+	}
+
+	framerate->prev_bps = curr_bps;
+
+	return curr_bps;
+}
+
 /* Total microseconds elapsed */
 static uint64_t
 framerate_elapsed_us (struct framerate * framerate)
@@ -192,7 +220,20 @@ int framerate_mark (struct framerate * framerate)
 	framerate->total_elapsed_us = framerate_elapsed_us (framerate);
 	framerate->curr_elapsed_us = framerate->total_elapsed_us - prev_elapsed_us;
 
+	/* count bytes written */
+	framerate->total_bytes += framerate->acc_bytes;
+	framerate->curr_bytes = framerate->acc_bytes;
+	framerate->acc_bytes = 0;
+
 	return 0;
+}
+
+void framerate_add_bytes (struct framerate * framerate, uint64_t bytes)
+{
+	if (framerate->acc_bytes == 0)
+		framerate->acc_bytes = bytes;
+	else
+		framerate->acc_bytes += bytes;
 }
 
 uint64_t

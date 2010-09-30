@@ -35,6 +35,11 @@ struct framerate {
 	double fps;
 	double prev_fps;
 
+	uint64_t total_bytes;
+	uint64_t curr_bytes;
+	uint64_t acc_bytes;
+	double prev_bps;
+
 #ifdef HAVE_TIMERFD
 	int timer_fd;
 #else
@@ -54,6 +59,9 @@ int framerate_destroy (struct framerate * framerate);
 /* Mark a frame as done, without waiting. Increments nr_handled */
 int framerate_mark (struct framerate * framerate);
 
+/* count up bytes written */
+void framerate_add_bytes (struct framerate * framerate, uint64_t bytes);
+
 /* Wait for the next timeout. Increments nr_handled, and will
  * increment nr_dropped by the number of events missed since the last
  * call to framerate_wait() */
@@ -67,5 +75,11 @@ double framerate_mean_fps (struct framerate * framerate);
 
 /* Instantaneous FPS ... */
 double framerate_instantaneous_fps (struct framerate * framerate);
+
+/* Mean average BPS over the entire elapsed time */
+double framerate_mean_bps (struct framerate * framerate);
+
+/* Instantaneous BPS ... */
+double framerate_instantaneous_bps (struct framerate * framerate);
 
 #endif /* __FRAMERATE_H__ */

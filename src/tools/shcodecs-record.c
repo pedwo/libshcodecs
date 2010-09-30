@@ -106,6 +106,9 @@ struct encode_data {
 
 	double ifps;
 	double mfps;
+
+	double ibps;
+	double mbps;
 };
 
 struct private_data {
@@ -344,6 +347,9 @@ static int write_output(SHCodecs_Encoder *encoder,
 {
 	struct encode_data *encdata = (struct encode_data*)user_data;
 
+	/* count number of bytes passed */
+	framerate_add_bytes (encdata->enc_framerate, length);
+
 	if (shcodecs_encoder_get_frame_num_delta(encoder) > 0 &&
 			encdata->enc_framerate != NULL) {
 		if (encdata->enc_framerate->nr_handled >= encdata->ainfo.frames_to_encode &&
@@ -352,6 +358,9 @@ static int write_output(SHCodecs_Encoder *encoder,
 		framerate_mark (encdata->enc_framerate);
 		encdata->ifps = framerate_instantaneous_fps (encdata->enc_framerate);
 		encdata->mfps = framerate_mean_fps (encdata->enc_framerate);
+
+		encdata->ibps = framerate_instantaneous_bps (encdata->enc_framerate);
+		encdata->mbps = framerate_mean_bps (encdata->enc_framerate);
 	}
 
 	if (fwrite(data, 1, length, encdata->output_fp) < (size_t)length)
@@ -811,9 +820,13 @@ int main(int argc, char *argv[])
 	while (running) {
 		fprintf (stderr, "Encoding @");
 		for (i=0; i < pvt->nr_encoders; i++) {
-			fprintf (stderr, "\t%6.2f  ", pvt->encdata[i].ifps);
+			fprintf (stderr, "\t%6.2f (%6.2f/%6.2f) ",
+				pvt->encdata[i].ifps, 
+				pvt->encdata[i].ibps / 1000000,
+				pvt->encdata[i].mbps / 1000000);
 		}
-		fprintf (stderr, "\tFPS\r");
+		fprintf (stderr, "\tFPS (MBPS)\r");
+
 		usleep (300000);
 
 		running = 0;
