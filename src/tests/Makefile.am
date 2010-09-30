@@ -20,4 +20,4 @@ noinst_HEADERS = shcodecs_tests.h
 TESTS = $(basic_tests)
 
 noop_SOURCES = noop.c
-noop_LDADD = $(SHCODECS_LIBS) $(UIOMUX_LIBS)
+noop_LDADD = $(SHCODECS_LIBS)
