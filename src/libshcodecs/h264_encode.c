@@ -25,6 +25,7 @@
 #include <string.h>
 #include <malloc.h>
 #include <sys/time.h>
+#include <time.h>
 
 #include "avcbe.h"		/* SuperH MEPG-4&H.264 Video Encode Library Header */
 #include "m4iph_vpu4.h"		/* SuperH MEPG-4&H.264 Video Driver Library Header */
@@ -184,7 +185,38 @@ h264_encode_deferred_init(SHCodecs_Encoder *enc, long stream_type)
 
 	enc->initialized = 2;
 
+	/* Rate control requires periodic reset. Check if we should. */
+	enc->bitrate_control_enabled = shcodecs_encoder_get_ratecontrol_skip_enable(enc);
+	if (enc->bitrate_control_enabled) {
+		unsigned long bps = shcodecs_encoder_get_bitrate(enc);
+
+		if (!bps)
+			bps = 1000000;
+
+		enc->idr_interval   = shcodecs_encoder_get_I_vop_interval(enc);
+		enc->next_idr       = 0;
+		enc->reset_interval = (240000000 / bps) * 60;
+		enc->next_reset     = 0;
+	}
+
 	return 0;
+}
+
+void
+h264_encode_debug_reset(SHCodecs_Encoder *enc, int *next_idr, int *idr_interval,
+			time_t *next_reset, time_t *reset_interval)
+{
+	if (enc->bitrate_control_enabled) {
+		*next_idr = enc->next_idr;
+		*idr_interval = enc->idr_interval;
+		*next_reset = enc->next_reset;
+		*reset_interval = enc->reset_interval;
+	} else {
+		*next_idr = -1;
+		*idr_interval = -1;
+		*next_reset = 0;
+		*reset_interval = 0;
+	}
 }
 
 void
@@ -362,6 +394,10 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 	fprintf(stderr, "\nFrame %d:\n", enc->frame_counter);
 #endif
 
+	/* calculate the next timing need to reset rate control */
+	if (enc->bitrate_control_enabled && !enc->next_reset)
+		enc->next_reset = time(NULL) + enc->reset_interval;
+
 	/* Continue encoding until a frame has been encoded or skipped */
 	while (1) {
 
@@ -454,6 +490,7 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 					enc->stream_buff_info.buff_top, nal_size);
 				if (cb_ret != 0)
 					return cb_ret;
+				enc->next_idr = enc->idr_interval;
 			} else {
 				cb_ret = output_data(enc, PDATA,
 					enc->stream_buff_info.buff_top, nal_size);
@@ -482,6 +519,18 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 			/* Move to next input frame */
 			enc->frm += enc->frame_no_increment;
 			enc->frame_counter++;
+
+			/* reset rate control? */
+			if (enc->bitrate_control_enabled) {
+				/* Next IDR */
+				enc->next_idr--;
+				if (!enc->next_idr && time(NULL) >= enc->next_reset) {
+					avcbe_change_enc_param(enc->stream_info,
+								AVCBE_ENCODING_RESET, NULL);
+					enc->next_reset += enc->reset_interval;
+				}
+			}
+
 			break;
 		}
 

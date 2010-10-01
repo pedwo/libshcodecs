@@ -128,6 +128,12 @@ struct SHCodecs_Encoder {
 	long output_filler_enable;	/* enable flag to put Filler Data for CPB Buffer Over */
 	long output_filler_data;	/* for FillerData(CPB  Buffer) */
 
+	/* Bit Rate Control */
+	int bitrate_control_enabled;    /* 1 if bitrate control is enabled */
+	int idr_interval;               /* I-frame interval */
+	int next_idr;                   /* frame count to the next IDR */
+	time_t reset_interval;          /* bitrate control reset interval in seconds */
+	time_t next_reset;              /* the next reset */
 };
 
 /* Internal prototypes of functions using SHCodecs_Encoder */
