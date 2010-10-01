@@ -570,6 +570,7 @@ int main(int argc, char *argv[])
 	unsigned int pixel_format;
 	int c, i=0;
 	long target_fps10;
+	double target_mbps;
 	unsigned long rotate_input;
 	int running = 1;
 
@@ -790,15 +791,20 @@ int main(int argc, char *argv[])
 	fprintf (stderr, "\nTarget   @");
 	for (i=0; i < pvt->nr_encoders; i++) {
 		target_fps10 = shcodecs_encoder_get_frame_rate(pvt->encdata[i].encoder);
-		fprintf (stderr, "\t%6.2f  ", target_fps10/10.0);
+		target_mbps = shcodecs_encoder_get_bitrate(pvt->encdata[i].encoder) / 1000000;
+
+		fprintf (stderr, "\t%6.2f (%6.2f) ", target_fps10/10.0, target_mbps);
 
 		pvt->encdata[i].skipsize = 300 / target_fps10;
 		pvt->encdata[i].skipcount = 0;
 
 		pvt->encdata[i].ifps = 0;
 		pvt->encdata[i].mfps = 0;
+
+		pvt->encdata[i].ibps = 0;
+		pvt->encdata[i].mbps = 0;
 	}
-	fprintf (stderr, "\tFPS\n");
+	fprintf (stderr, "\tFPS (Mbps)\n");
 
 	for (i=0; i < pvt->nr_cameras; i++) {
 		capture_start_capturing(pvt->cameras[i].ceu);
@@ -825,7 +831,7 @@ int main(int argc, char *argv[])
 				pvt->encdata[i].ibps / 1000000,
 				pvt->encdata[i].mbps / 1000000);
 		}
-		fprintf (stderr, "\tFPS (MBPS)\r");
+		fprintf (stderr, "\tFPS (Mbps/Mbps)\r");
 
 		usleep (300000);
 
