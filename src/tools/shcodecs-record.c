@@ -400,7 +400,7 @@ int cleanup (void)
 	/* Display mean frame rate */
 	fprintf (stderr, "Encoded  @");
 	for (i=0; i < pvt->nr_encoders; i++) {
-		fprintf (stderr, "\t%6.2f  ", pvt->encdata[i].mfps);
+		fprintf (stderr, "\t%6.2f ", pvt->encdata[i].mfps);
 	}
 	fprintf (stderr, "\tFPS\n");
 
