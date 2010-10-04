@@ -131,7 +131,7 @@ struct private_data {
 };
 
 
-static char * optstring = "r:Phv";
+static char * optstring = "r:Phvb";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_options[] = {
@@ -139,6 +139,8 @@ static struct option long_options[] = {
 	{ "no-preview", no_argument, NULL, 'P'},
 	{ "help", no_argument, 0, 'h'},
 	{ "version", no_argument, 0, 'v'},
+	{ "show-bitrate", no_argument, 0, 'b'},
+	{ 0, 0, 0, 0 }
 };
 #endif
 
@@ -154,6 +156,7 @@ usage (const char * progname)
   printf ("\nMiscellaneous options\n");
   printf ("  -h, --help           Display this help and exit\n");
   printf ("  -v, --version        Output version information and exit\n");
+  printf ("  -b, --show-bitrate   Show the current and average bitrate\n");
   printf ("\nPlease report bugs to <linux-sh@vger.kernel.org>\n");
 }
 
@@ -577,6 +580,7 @@ int main(int argc, char *argv[])
 	char * progname;
 	int show_version = 0;
 	int show_help = 0;
+	int show_bitrate = 0;
 
 	progname = argv[0];
 
@@ -612,6 +616,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'v': /* version */
 			show_version = 1;
+			break;
+		case 'b': /* bitrate */
+			show_bitrate = 1;
 			break;
 		case 'r':
 			if (optarg) {
@@ -678,7 +685,8 @@ int main(int argc, char *argv[])
 	for (i=0; i < pvt->nr_encoders; i++) {
 		if ( (strcmp(pvt->encdata[i].ctrl_filename, "-") == 0) ||
 				(pvt->encdata[i].ctrl_filename[0] == '\0') ){
-			fprintf(stderr, "Invalid v4l2 configuration file.\n");
+			fprintf(stderr, "Invalid v4l2 configuration file - %s\n",
+				pvt->encdata[i].ctrl_filename);
 			return -1;
 		}
 
@@ -793,8 +801,9 @@ int main(int argc, char *argv[])
 		target_fps10 = shcodecs_encoder_get_frame_rate(pvt->encdata[i].encoder);
 		target_mbps = shcodecs_encoder_get_bitrate(pvt->encdata[i].encoder) / 1000000;
 
-		fprintf (stderr, "\t%6.2f (%6.2f) ", target_fps10/10.0, target_mbps);
-
+		fprintf (stderr, "\t%6.2f ", target_fps10/10.0);
+		if (show_bitrate)
+			fprintf (stderr, "(%6.2f) ", target_mbps);
 		pvt->encdata[i].skipsize = 300 / target_fps10;
 		pvt->encdata[i].skipcount = 0;
 
@@ -804,7 +813,10 @@ int main(int argc, char *argv[])
 		pvt->encdata[i].ibps = 0;
 		pvt->encdata[i].mbps = 0;
 	}
-	fprintf (stderr, "\tFPS (Mbps)\n");
+	if (!show_bitrate)
+		fprintf (stderr, "\tFPS\n");
+	else
+		fprintf (stderr, "\tFPS (Mbps)\n");
 
 	for (i=0; i < pvt->nr_cameras; i++) {
 		capture_start_capturing(pvt->cameras[i].ceu);
@@ -826,12 +838,17 @@ int main(int argc, char *argv[])
 	while (running) {
 		fprintf (stderr, "Encoding @");
 		for (i=0; i < pvt->nr_encoders; i++) {
-			fprintf (stderr, "\t%6.2f (%6.2f/%6.2f) ",
-				pvt->encdata[i].ifps, 
-				pvt->encdata[i].ibps / 1000000,
-				pvt->encdata[i].mbps / 1000000);
+			fprintf (stderr, "\t%6.2f ",
+				pvt->encdata[i].ifps);
+			if (show_bitrate)
+				fprintf (stderr, "(%6.2f/%6.2f) ",
+					pvt->encdata[i].ibps / 1000000,
+					pvt->encdata[i].mbps / 1000000);
 		}
-		fprintf (stderr, "\tFPS (Mbps/Mbps)\r");
+		if (!show_bitrate)
+			fprintf (stderr, "\tFPS\r");
+		else
+			fprintf (stderr, "\tFPS (Mbps/Mbps)\r");
 
 		usleep (300000);
 
