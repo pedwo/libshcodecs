@@ -660,22 +660,26 @@ int main(int argc, char *argv[])
 
 	pvt->nr_encoders = i;
 
-	pvt->uiomux = uiomux_open ();
+	if (!(pvt->uiomux = uiomux_open())) {
+		fprintf (stderr, "Could not open UIOMux, exiting\n");
+		return -1;
+	}
 
 	/* VEU initialisation */
-	if ((pvt->veu = shveu_open()) == 0) {
+	if (!(pvt->veu = shveu_open())) {
 		fprintf (stderr, "Could not open VEU, exiting\n");
+		return -1;
 	}
 
 	if (pvt->do_preview) {
-		pvt->display = display_open();
-		if (!pvt->display) {
-			return -5;
+		if (!(pvt->display = display_open())) {
+			fprintf (stderr, "Could not open display, exiting\n");
+			return -1;
 		}
 
 #ifdef HAVE_SHBEU
-		pvt->beu = shbeu_open();
-		if (!pvt->beu) {
+		if (!(pvt->beu = shbeu_open())) {
+			fprintf (stderr, "Could not open BEU, exiting\n");
 			return -1;
 		}
 #endif

@@ -230,10 +230,7 @@ int framerate_mark (struct framerate * framerate)
 
 void framerate_add_bytes (struct framerate * framerate, uint64_t bytes)
 {
-	if (framerate->acc_bytes == 0)
-		framerate->acc_bytes = bytes;
-	else
-		framerate->acc_bytes += bytes;
+	framerate->acc_bytes += bytes;
 }
 
 uint64_t
