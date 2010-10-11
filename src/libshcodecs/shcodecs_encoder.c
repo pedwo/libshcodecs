@@ -355,32 +355,6 @@ int shcodecs_encoder_run(SHCodecs_Encoder * encoder)
 	}
 }
 
-int shcodecs_encoder_run_multiple (SHCodecs_Encoder * encoders[], int nr_encoders)
-{
-	SHCodecs_Encoder * encoder;
-	int i;
-
-	for (i=0; i < nr_encoders; i++) {
-		encoder = encoders[i];
-
-		if (encoder->initialized < 1) {
-			if (shcodecs_encoder_deferred_init (encoder) == -1) {
-				return -1;
-			}
-		}
-	}
-
-	/* XXX: Check formats */
-	for (i=0; i < nr_encoders; i++) {
-		encoder = encoders[i];
-		if (encoder->format != SHCodecs_Format_H264) {
-			fprintf (stderr, "%s: Multiple encode is currently only supported where all streams are H.264\n", __func__);
-			return -1;
-		}
-	}
-	return h264_encode_run_multiple (encoders, nr_encoders, AVCBE_H264);
-}
-
 int
 shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder, 
 				unsigned char * y_input, unsigned char * c_input)
