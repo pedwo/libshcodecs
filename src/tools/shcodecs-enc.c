@@ -59,18 +59,6 @@ struct shenc {
 	long stream_type;
 };
 
-/* SHCodecs_Encoder_Input callback for acquiring an image from the input file */
-static int get_input(SHCodecs_Encoder * encoder, void *user_data)
-{
-	struct shenc * shenc = (struct shenc *)user_data;
-
-	if (shenc->enc_framerate == NULL) {
-		shenc->enc_framerate = framerate_new_measurer ();
-	}
-
-	return load_1frame_from_image_file(shenc->encoder, &shenc->ainfo);
-}
-
 /* SHCodecs_Encoder_Output callback for writing encoded data to the output file */
 static int write_output(SHCodecs_Encoder * encoder,
 			unsigned char *data, int length, void *user_data)
@@ -157,7 +145,6 @@ static struct shenc * setup_enc(char * filename)
 		goto err;
 	}
 
-	shcodecs_encoder_set_input_callback(shenc->encoder, get_input, shenc);
 	shcodecs_encoder_set_output_callback(shenc->encoder, write_output, shenc);
 
 	/* set parameters for use in encoding */
@@ -190,14 +177,32 @@ err:
 
 void *convert_main(void *data)
 {
+	unsigned char *pY;
+	unsigned char *pC;
 	struct shenc *shenc;
 	int ret = -1;
 
 	shenc = setup_enc ((char *) data);
-	if (shenc) {
-		ret = shcodecs_encoder_run (shenc->encoder);
+
+	pY = malloc(shenc->ainfo.xpic * shenc->ainfo.ypic);
+	pC = malloc(shenc->ainfo.xpic * shenc->ainfo.ypic / 2);
+
+	if (pY && pC && shenc) {
+
+		shenc->enc_framerate = framerate_new_measurer ();
+
+		while (read_1frame_YCbCr420sp(shenc->ainfo.input_yuv_fp,
+						shenc->ainfo.xpic, shenc->ainfo.ypic, pY, pC) == 0) {
+			ret = shcodecs_encoder_encode_1frame(shenc->encoder, pY, pC, 0);
+			if (ret != 0)
+				break;
+		}
+		ret = shcodecs_encoder_finish(shenc->encoder);
 		cleanup (shenc);
 	}
+
+	free (pY);
+	free (pC);
 
 	return (void *)ret;
 }

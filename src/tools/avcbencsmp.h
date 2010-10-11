@@ -47,6 +47,7 @@ typedef struct {
 
 //#define ALIGN(a, w) (void *)(((unsigned long)(a) + (w) - 1) & ~((w) - 1))
 
+int read_1frame_YCbCr420sp(FILE *fh, int w, int h, unsigned char *pY, unsigned char *pC);
 
 int open_input_image_file(APPLI_INFO * appli_info);
 int load_1frame_from_image_file(SHCodecs_Encoder * encoder, APPLI_INFO * appli_info);

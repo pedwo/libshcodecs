@@ -171,6 +171,10 @@ SHCodecs_Encoder *shcodecs_encoder_init(int width, int height,
 {
 	SHCodecs_Encoder *encoder;
 	long return_code;
+	long width_height;
+	unsigned long buf_size;
+	unsigned char *pY;
+	int i;
 
 	encoder = calloc(1, sizeof(SHCodecs_Encoder));
 	if (encoder == NULL)
@@ -197,33 +201,8 @@ SHCodecs_Encoder *shcodecs_encoder_init(int width, int height,
 	encoder->output_filler_enable = 0;
 	encoder->output_filler_data = 0;
 
-	if (shcodecs_encoder_global_init (encoder) < 0) {
-		shcodecs_encoder_close(encoder);
-		return NULL;
-	}
-
-	init_other_API_enc_param(&encoder->other_API_enc_param);
-
-	if (encoder->format == SHCodecs_Format_H264) {
-		return_code = h264_encode_init (encoder, AVCBE_H264);
-	} else {
-		return_code = mpeg4_encode_init (encoder, AVCBE_MPEG4);
-	}
-	if (return_code < 0) {
-		shcodecs_encoder_close(encoder);
-		return NULL;
-	}
-
-	return encoder;
-}
-
-static int
-shcodecs_encoder_deferred_init (SHCodecs_Encoder * encoder)
-{
-	long width_height;
-	unsigned long buf_size;
-	unsigned char *pY;
-	int i;
+	if (shcodecs_encoder_global_init (encoder) < 0)
+		goto err;
 
 	width_height = ROUND_UP_16(encoder->width) * ROUND_UP_16(encoder->height);
 	width_height += (width_height / 2);
@@ -272,12 +251,25 @@ shcodecs_encoder_deferred_init (SHCodecs_Encoder * encoder)
 	if (!encoder->end_code_buff_info.buff_top)
 		goto err;
 
+	init_other_API_enc_param(&encoder->other_API_enc_param);
+
+	if (encoder->format == SHCodecs_Format_H264) {
+		encoder->stream_type = AVCBE_H264;
+		return_code = h264_encode_init (encoder);
+	} else {
+		encoder->stream_type = AVCBE_MPEG4;
+		return_code = mpeg4_encode_init (encoder);
+	}
+	if (return_code < 0)
+		goto err;
+
 	encoder->initialized = 1;
 
-	return 0;
+	return encoder;
 
 err:
-	return -1;
+	shcodecs_encoder_close(encoder);
+	return NULL;
 }
 
 /**
@@ -342,16 +334,36 @@ int shcodecs_encoder_run(SHCodecs_Encoder * encoder)
 	if (encoder == NULL)
 			return -1;
 
-	if (encoder->initialized < 1) {
-		if (shcodecs_encoder_deferred_init (encoder) == -1) {
-			return -1;
-		}
+	if (encoder->format == SHCodecs_Format_H264) {
+		return h264_encode_run (encoder);
+	} else {
+		return mpeg4_encode_run (encoder);
 	}
+}
+
+int
+shcodecs_encoder_encode_1frame(SHCodecs_Encoder * encoder,
+				unsigned char * y_input, unsigned char * c_input, int phys)
+{
+	if (encoder == NULL)
+		return -1;
+
+	if (encoder->format == SHCodecs_Format_H264)
+		return h264_encode_1frame (encoder, y_input, c_input, phys);
+	else
+		return mpeg4_encode_1frame (encoder, y_input, c_input, phys);
+}
+
+int
+shcodecs_encoder_finish(SHCodecs_Encoder * encoder)
+{
+	if (encoder == NULL)
+		return -1;
 
 	if (encoder->format == SHCodecs_Format_H264) {
-		return h264_encode_run (encoder, AVCBE_H264);
+		return h264_encode_finish (encoder);
 	} else {
-		return mpeg4_encode_run (encoder, AVCBE_MPEG4);
+		return mpeg4_encode_finish (encoder);
 	}
 }
 
@@ -368,22 +380,6 @@ shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder,
 	return 0;
 }
 
-int shcodecs_encoder_set_allocate_input_buffers (SHCodecs_Encoder * encoder, int allocate)
-{
-  if (encoder == NULL) return -1;
-  if (encoder->initialized != 0) return -2;
-
-  encoder->allocate = allocate;
-
-  return 0;
-}
-
-/*
- * Get the width in pixels of the encoded image
- * \param encoder The SHCodecs_Encoder* handle
- * \returns The width in pixels
- * \retval -1 \a encoder invalid
- */
 int
 shcodecs_encoder_get_width (SHCodecs_Encoder * encoder)
 {
@@ -392,12 +388,6 @@ shcodecs_encoder_get_width (SHCodecs_Encoder * encoder)
 	return encoder->width;
 }
 
-/*
- * Get the height in pixels of the encoded image
- * \param encoder The SHCodecs_Encoder* handle
- * \returns The height in pixels
- * \retval -1 \a encoder invalid
- */
 int
 shcodecs_encoder_get_height (SHCodecs_Encoder * encoder)
 {
@@ -406,36 +396,12 @@ shcodecs_encoder_get_height (SHCodecs_Encoder * encoder)
 	return encoder->height;
 }
 
-/**
- * Get the number of input frames elapsed since the last output callback.
- * This is typically called by the client in the encoder output callback.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns 0 when more data of the same frame has just been output.
- * \returns >0 for the number of frames since previous output callback.
- * \retval -1 \a encoder invalid
- */
 int
 shcodecs_encoder_get_frame_num_delta(SHCodecs_Encoder *encoder)
 {
 	if (encoder == NULL) return -1;
 
 	return encoder->frame_num_delta;
-}
-
-/**
- * Get the physical address of input data.
- * \param encoder The SHCodecs_Encoder* handle
- * \retval 0 Success
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_get_input_physical_addr (SHCodecs_Encoder * encoder, 
-		     unsigned int *addr_y, unsigned int *addr_C)
-{
-	if (encoder == NULL) return -1;
-	*addr_y = (unsigned int)encoder->addr_y;
-	*addr_C = (unsigned int)encoder->addr_c;
-	return 0;
 }
 
 /**
@@ -446,12 +412,13 @@ shcodecs_encoder_get_input_physical_addr (SHCodecs_Encoder * encoder,
  */
 int
 shcodecs_encoder_set_input_physical_addr (SHCodecs_Encoder * encoder, 
-		     unsigned int *addr_y, unsigned int *addr_c)
+                    unsigned int *addr_y, unsigned int *addr_c)
 {
-	if (encoder == NULL) return -1;
+       if (encoder == NULL) return -1;
 
-	encoder->addr_y = (unsigned char *)addr_y;
-	encoder->addr_c = (unsigned char *)addr_c;
+       encoder->addr_y = (unsigned char *)addr_y;
+       encoder->addr_c = (unsigned char *)addr_c;
 
-	return 0;
+       return 0;
 }
+

@@ -106,7 +106,7 @@ output_data(SHCodecs_Encoder *enc, int type, void *buf, long length)
 
 
 int
-h264_encode_init (SHCodecs_Encoder *enc, long stream_type)
+h264_encode_init (SHCodecs_Encoder *enc)
 {
 	long rc;
 
@@ -138,7 +138,7 @@ h264_encode_init (SHCodecs_Encoder *enc, long stream_type)
 
 	/* Set default values for the parameters */
 	m4iph_vpu_lock(enc->vpu);
-	rc = avcbe_set_default_param(stream_type, AVCBE_RATE_NO_SKIP,
+	rc = avcbe_set_default_param(AVCBE_H264, AVCBE_RATE_NO_SKIP,
 				    &(enc->encoding_property),
 				    (void *)&(enc->other_options_h264));
 	m4iph_vpu_unlock(enc->vpu);
@@ -153,7 +153,7 @@ err:
 }
 
 static int
-h264_encode_deferred_init(SHCodecs_Encoder *enc, long stream_type)
+h264_encode_deferred_init(SHCodecs_Encoder *enc)
 {
 	long rc;
 	avcbe_other_options_h264 *options;
@@ -545,10 +545,16 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 }
 
 static long
-h264_encode(SHCodecs_Encoder *enc)
+h264_encode_start(SHCodecs_Encoder *enc)
 {
 	long rc;
-	int i, j, cb_ret;
+	int j;
+
+	if (enc->initialized < 2) {
+		rc = h264_encode_deferred_init(enc);
+		if (rc != 0)
+			return rc;
+	}
 
 	if (enc->allocate) {
 		/* Fixed input buffer if client doesn't change it */
@@ -568,9 +574,7 @@ h264_encode(SHCodecs_Encoder *enc)
 
 	/* Setup VUI parameters */
 	if (enc->other_options_h264.avcbe_out_vui_parameters == AVCBE_ON) {
-		m4iph_vpu_lock(enc->vpu);
 		rc = setup_vui_params(enc);
-		m4iph_vpu_unlock(enc->vpu);
 		if (rc != 0)
 			return rc;
 	}
@@ -586,6 +590,81 @@ h264_encode(SHCodecs_Encoder *enc)
 	enc->filler_data_buff_info.buff_top = (unsigned char *) &enc->filler_data_buff[0];
 	enc->filler_data_buff_info.buff_size = FILLER_DATA_BUFF_SIZE;
 
+	enc->initialized = 3;
+
+	return 0;
+}
+
+int
+h264_encode_finish (SHCodecs_Encoder *enc)
+{
+	long rc, length;
+
+	m4iph_vpu_lock(enc->vpu);
+	length = avcbe_put_end_code(enc->stream_info, &enc->end_code_buff_info, AVCBE_END_OF_STRM);
+	m4iph_vpu_unlock(enc->vpu);
+	if (length <= 0)
+		return vpu_err(enc, __func__, __LINE__, length);
+
+	rc = output_data(enc, END, enc->end_code_buff_info.buff_top, length);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
+int
+h264_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, int phys)
+{
+	unsigned char *phys_py = py;
+	unsigned char *phys_pc = pc;
+	int rc;
+
+	if (!phys) {
+		/* Copy to contiguous buffer that the VPU can access */
+		phys_py = enc->input_frames[0].Y_fmemp;
+		phys_pc = enc->input_frames[0].C_fmemp;
+
+		m4iph_vpu_lock(enc->vpu);
+		m4iph_sdr_write(phys_py, py, enc->y_bytes);
+		m4iph_sdr_write(phys_pc, pc, enc->y_bytes / 2);
+		m4iph_vpu_unlock(enc->vpu);
+
+		if (enc->release)
+			enc->release(enc, py, pc, enc->release_user_data);
+	}
+
+	if (enc->initialized < 3) {
+		m4iph_vpu_lock(enc->vpu);
+		rc = h264_encode_start(enc);
+		m4iph_vpu_unlock(enc->vpu);
+		if (rc != 0)
+			return rc;
+	}
+
+	m4iph_vpu_lock(enc->vpu);
+	rc = h264_encode_frame(enc, phys_py, phys_pc);
+	m4iph_vpu_unlock(enc->vpu);
+
+	if (phys && enc->release)
+		enc->release(enc, py, pc, enc->release_user_data);
+
+	return rc;
+}
+
+int
+h264_encode_run (SHCodecs_Encoder *enc)
+{
+	long rc;
+	int cb_ret;
+
+	if (enc->initialized < 3) {
+		m4iph_vpu_lock(enc->vpu);
+		rc = h264_encode_start(enc);
+		m4iph_vpu_unlock(enc->vpu);
+		if (rc != 0)
+			return rc;
+	}
 
 	/* For all frames to encode */
 	while (1) {
@@ -601,55 +680,13 @@ h264_encode(SHCodecs_Encoder *enc)
 			}
 		}
 
-		/* Encode the frame */
-		m4iph_vpu_lock(enc->vpu);
-		rc = h264_encode_frame(enc, enc->addr_y, enc->addr_c);
-		m4iph_vpu_unlock(enc->vpu);
-
-		if (enc->release) {
-			enc->release(enc, enc->addr_y, enc->addr_c, enc->release_user_data);
-		}
-
+		rc = h264_encode_1frame(enc, enc->addr_y, enc->addr_c, 1);
 		if (rc != 0)
 			return rc;
 	}
 
-	return 0;
-}
+	rc = h264_encode_finish(enc);
 
-int
-h264_encode_run (SHCodecs_Encoder *enc, long stream_type)
-{
-	long i, rc, length;
-
-	if (enc->initialized < 2) {
-		m4iph_vpu_lock(enc->vpu);
-		rc = h264_encode_deferred_init(enc, stream_type);
-		m4iph_vpu_unlock(enc->vpu);
-		if (rc != 0)
-			return rc;
-	}
-
-	rc = h264_encode(enc);
-	if (rc != 0)
-		return rc;
-
-	/* End encoding */
-	m4iph_vpu_lock(enc->vpu);
-	length = avcbe_put_end_code(enc->stream_info, &enc->end_code_buff_info, AVCBE_END_OF_STRM);
-	m4iph_vpu_unlock(enc->vpu);
-	if (length <= 0)
-		return vpu_err(enc, __func__, __LINE__, length);
-	rc = output_data(enc, END, enc->end_code_buff_info.buff_top, length);
-	if (rc != 0)
-		return rc;
-
-	if (enc->output_filler_enable == 1) {
-		rc = avcbe_put_filler_data(&enc->stream_buff_info,
-				enc->other_options_h264.avcbe_put_start_code, 2);
-		// TODO shouldn't this be output?
-	}
-
-	return 0;
+	return rc;
 }
 
