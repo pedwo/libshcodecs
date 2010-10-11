@@ -140,24 +140,6 @@ shcodecs_encoder_get_input_buf (SHCodecs_Encoder *encoder,
                                 unsigned char **y_input, unsigned char **c_input);
 
 /**
- * Get the size in bytes of a Y plane of input data.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns size in bytes of Y plane.
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_get_y_bytes (SHCodecs_Encoder * encoder);
-
-/**
- * Get the size in bytes of a CbCr plane of input data.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns size in bytes of CbCr plane.
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_get_c_bytes (SHCodecs_Encoder * encoder);
-
-/**
  * Run the encoder.
  * \param encoder The SHCodecs_Encoder* handle
  * \retval 0 Success
