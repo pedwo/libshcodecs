@@ -2480,8 +2480,11 @@ int ctrlfile_get_params(const char *ctrl_file,
 
 	GetStringFromCtrlFile(fp_in, "input_yuv_path", path_buf, &status_flag);
 	GetStringFromCtrlFile(fp_in, "input_yuv_file", file_buf, &status_flag);
-	snprintf(appli_info->input_file_name_buf, 256, "%s/%s", path_buf, file_buf);
-
+	if (!strcmp (file_buf, "-")) {
+		snprintf(appli_info->input_file_name_buf, 256, "-");
+	} else {
+		snprintf(appli_info->input_file_name_buf, 256, "%s/%s", path_buf, file_buf);
+	}
 	GetStringFromCtrlFile(fp_in, "output_directry", path_buf, &status_flag);
 	GetStringFromCtrlFile(fp_in, "output_stream_file", file_buf, &status_flag);
 	if (!strcmp (file_buf, "-")) {
