@@ -29,11 +29,25 @@
 
 #include "avcbencsmp.h"
 
-#include "capture.h"
-
-#include <shveu/shveu.h>
-#include <shveu/veu_colorspace.h>
 #include <shcodecs/shcodecs_encoder.h>
+
+/* Read 1 frame of YCbCr420 semi-planar data */
+int read_1frame_YCbCr420sp(FILE *fh, int w, int h, unsigned char *pY, unsigned char *pC)
+{
+	int read;
+
+	/* Luma */	
+	read = fread(pY, 1, w * h, fh);
+	if (read < (w * h))
+		return 1;
+
+	/* Packed chroma */	
+	read = fread(pC, 1, w * h / 2, fh);
+	if (read < ( w * h / 2))
+		return 1;
+
+	return 0;
+}
 
 int open_input_image_file(APPLI_INFO * appli_info)
 {
@@ -137,13 +151,8 @@ int load_1frame_from_image_file(SHCodecs_Encoder * encoder,
 	}
 
 	/* Write image data to kernel memory for VPU */
-        shcodecs_encoder_input_provide (encoder, w_addr_yuv, CbCr_ptr);
-#if 0
-	m4iph_sdr_write((unsigned char *) addr_y,
-			(unsigned char *) w_addr_yuv, wnum);
-	m4iph_sdr_write((unsigned char *) addr_c,
-			(unsigned char *) CbCr_ptr, wnum / 2);
-#endif
+	shcodecs_encoder_encode_1frame(encoder, w_addr_yuv, CbCr_ptr, 0);
+
 	free(w_addr_yuv);
 	free(Cb_buf_ptr);
 	free(Cr_buf_ptr);
