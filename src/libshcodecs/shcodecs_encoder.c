@@ -475,34 +475,6 @@ int shcodecs_encoder_set_height (SHCodecs_Encoder * encoder, int height)
 }
 
 /**
- * Get the size in bytes of a Y plane of input data.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns size in bytes of Y plane.
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_get_y_bytes (SHCodecs_Encoder * encoder)
-{
-	if (encoder == NULL) return -1;
-
-	return encoder->y_bytes;
-}
-
-/**
- * Get the size in bytes of a CbCr plane of input data.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns size in bytes of CbCr plane.
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_get_c_bytes (SHCodecs_Encoder * encoder)
-{
-	if (encoder == NULL) return -1;
-
-	return encoder->y_bytes/2;
-}
-
-/**
  * Get the number of input frames elapsed since the last output callback.
  * This is typically called by the client in the encoder output callback.
  * \param encoder The SHCodecs_Encoder* handle
