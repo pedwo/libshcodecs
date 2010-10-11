@@ -161,16 +161,6 @@ int load_1frame_from_image_file(SHCodecs_Encoder * encoder,
 	return (0);
 }
 
-/* close input YUV data file */
-void close_input_image_file(APPLI_INFO * appli_info)
-{
-	if (appli_info->input_yuv_fp != NULL) {
-		fclose(appli_info->input_yuv_fp);
-		appli_info->input_yuv_fp = NULL;
-	}
-}
-
-
 FILE *
 open_output_file(const char *fname)
 {
