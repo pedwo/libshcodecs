@@ -156,38 +156,12 @@ shcodecs_encoder_run (SHCodecs_Encoder * encoder);
 int shcodecs_encoder_get_width (SHCodecs_Encoder * encoder);
 
 /**
- * Set the width in pixels of the encoded image.
- * Note that this function can only be called during intialization,
- * ie. before the first call to shcodecs_encoder_run().
- * \param encoder The SHCodecs_Encoder* handle
- * \param width The width in pixels
- * \returns The width in pixels
- * \retval -1 \a encoder invalid
- * \retval -2 \a encoder already initialized.
- * \retval -3 \a width out of allowed range
- */
-int shcodecs_encoder_set_width (SHCodecs_Encoder * encoder, int width);
-
-/**
  * Get the height in pixels of the encoded image
  * \param encoder The SHCodecs_Encoder* handle
  * \returns The height in pixels
  * \retval -1 \a encoder invalid
  */
 int shcodecs_encoder_get_height (SHCodecs_Encoder * encoder);
-
-/**
- * Set the height in pixels of the encoded image.
- * Note that this function can only be called during intialization,
- * ie. before the first call to shcodecs_encoder_run().
- * \param encoder The SHCodecs_Encoder* handle
- * \param height The height in pixels
- * \returns The height in pixels
- * \retval -1 \a encoder invalid
- * \retval -2 \a encoder already initialized.
- * \retval -3 \a height out of allowed range
- */
-int shcodecs_encoder_set_height (SHCodecs_Encoder * encoder, int height);
 
 /**
  * Set input buffer allocation policy.
