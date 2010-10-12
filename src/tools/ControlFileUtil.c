@@ -121,19 +121,13 @@ struct enc_options_t
 	long (*set_fn)(SHCodecs_Encoder * encoder, long value);
 };
 
-struct enc_options3_t
+struct enc_uoptions_t
 {
 	const char *name;
 	unsigned long (*set_fn)(SHCodecs_Encoder * encoder, unsigned long value);
 };
 
-static int SetPropsFromFile(FILE * fp_in, SHCodecs_Encoder * encoder)
-{
-	int found;
-	long value;
-	int i, nr_options;
-
-	static struct enc_options_t options[] = {
+static const struct enc_options_t options[] = {
 	{ "stream_type", &shcodecs_encoder_set_stream_type},
 	{ "bitrate", &shcodecs_encoder_set_bitrate },
 	{ "x_pic_size", &shcodecs_encoder_set_xpic_size },
@@ -155,25 +149,9 @@ static int SetPropsFromFile(FILE * fp_in, SHCodecs_Encoder * encoder)
 	{ "noise_reduction", &shcodecs_encoder_set_noise_reduction },
 	{ "reaction_param_coeff", &shcodecs_encoder_set_reaction_param_coeff },
 	{ "weightedQ_mode", &shcodecs_encoder_set_weightedQ_mode },
-	};
+};
 
-	nr_options = sizeof(options) / sizeof(struct enc_options_t);
-
-	for (i=0; i<nr_options; i++) {
-		if (GetValueFromCtrlFile(fp_in, options[i].name, &value))
-			(*options[i].set_fn)(encoder, value);
-	}
-
-	return (1);
-}
-
-static int SetH264PropsFromFile(FILE * fp_in, SHCodecs_Encoder * encoder)
-{
-	int found;
-	long value;
-	int i, nr_options;
-
-	static struct enc_options3_t options[] = {
+static const struct enc_uoptions_t h264_options[] = {
 	{ "Ivop_quant_initial_value", &shcodecs_encoder_set_h264_Ivop_quant_initial_value },
 	{ "Pvop_quant_initial_value", &shcodecs_encoder_set_h264_Pvop_quant_initial_value },
 	{ "use_dquant", &shcodecs_encoder_set_h264_use_dquant },
@@ -217,39 +195,15 @@ static int SetH264PropsFromFile(FILE * fp_in, SHCodecs_Encoder * encoder)
 	{ "level_value", &shcodecs_encoder_set_h264_level_value },
 	{ "out_vui_parameters", &shcodecs_encoder_set_h264_out_vui_parameters },
 	{ "constrained_intra_pred", &shcodecs_encoder_set_h264_constrained_intra_pred },
-	};
+};
 
-	static struct enc_options_t options2[] = {
+static const struct enc_options_t h264_options2[] = {
 	{ "deblocking_alpha_offset", &shcodecs_encoder_set_h264_deblocking_alpha_offset },
 	{ "deblocking_beta_offset", &shcodecs_encoder_set_h264_deblocking_beta_offset },
 	{ "chroma_qp_index_offset", &shcodecs_encoder_set_h264_chroma_qp_index_offset },
-	};
+};
 
-	nr_options = sizeof(options) / sizeof(struct enc_options3_t);
-
-	for (i=0; i<nr_options; i++) {
-		if (GetValueFromCtrlFile(fp_in, options[i].name, &value))
-			(*options[i].set_fn)(encoder, value);
-	}
-
-	nr_options = sizeof(options2) / sizeof(struct enc_options_t);
-
-	for (i=0; i<nr_options; i++) {
-		if (GetValueFromCtrlFile(fp_in, options[i].name, &value))
-			(*options[i].set_fn)(encoder, value);
-	}
-
-
-	return (1);
-}
-
-static int SetMPEGPropsFromFile(FILE * fp_in, SHCodecs_Encoder * encoder)
-{
-	int found;
-	long value;
-	int i, nr_options;
-
-	static struct enc_options3_t options[] = {
+static const struct enc_uoptions_t mpeg4_options[] = {
 	{ "out_vos", &shcodecs_encoder_set_mpeg4_out_vos },
 	{ "out_gov", &shcodecs_encoder_set_mpeg4_out_gov },
 	{ "aspect_ratio_info_type", &shcodecs_encoder_set_mpeg4_aspect_ratio_info_type },
@@ -293,9 +247,25 @@ static int SetMPEGPropsFromFile(FILE * fp_in, SHCodecs_Encoder * encoder)
 	{ "vop_min_size", &shcodecs_encoder_set_mpeg4_vop_min_size },
 	{ "intra_thr", &shcodecs_encoder_set_mpeg4_intra_thr },
 	{ "b_vop_num", &shcodecs_encoder_set_mpeg4_b_vop_num },
-	};
+};
 
-	nr_options = sizeof(options) / sizeof(struct enc_options3_t);
+static int SetPropsFromFile(FILE * fp_in, SHCodecs_Encoder * encoder, const struct enc_options_t *options, int nr_options)
+{
+	int found, i;
+	long value;
+
+	for (i=0; i<nr_options; i++) {
+		if (GetValueFromCtrlFile(fp_in, options[i].name, &value))
+			(*options[i].set_fn)(encoder, value);
+	}
+
+	return (1);
+}
+
+static int SetUnsignedPropsFromFile(FILE * fp_in, SHCodecs_Encoder * encoder, const struct enc_uoptions_t *options, int nr_options)
+{
+	int found, i;
+	long value;
 
 	for (i=0; i<nr_options; i++) {
 		if (GetValueFromCtrlFile(fp_in, options[i].name, &value))
@@ -365,15 +335,7 @@ int ctrlfile_get_params(const char *ctrl_file,
 
 }
 
-/*****************************************************************************
- * Function Name	: ctrlfile_set_enc_param
- * Description		: コントロールファイルから、構造体avcbe_encoding_property、avcbe_other_options_h264、
- *　　　　　　　　　 avcbe_other_options_mpeg4等のメンバ値を読み込み、設定して返す
- * Parameters		: 省略
- * Called functions	: 		  
- * Global Data		: 
- * Return Value		: 0: 正常終了、-1: エラー
- *****************************************************************************/
+/* Read encoder options from a control file and set them */
 int ctrlfile_set_enc_param(SHCodecs_Encoder * encoder, const char *ctrl_file)
 {
 	FILE *fp_in;
@@ -386,19 +348,26 @@ int ctrlfile_set_enc_param(SHCodecs_Encoder * encoder, const char *ctrl_file)
 		return -1;
 	}
 
-	SetPropsFromFile(fp_in, encoder);
+	SetPropsFromFile(fp_in, encoder, options,
+			sizeof(options) / sizeof(struct enc_options_t));
 
 	stream_type = shcodecs_encoder_get_stream_type (encoder);
 
 	if (stream_type == SHCodecs_Format_H264) {
-		SetH264PropsFromFile(fp_in, encoder);
+
+		SetUnsignedPropsFromFile(fp_in, encoder, h264_options,
+				sizeof(h264_options) / sizeof(struct enc_uoptions_t));
+
+		SetPropsFromFile(fp_in, encoder, h264_options2,
+				sizeof(h264_options2) / sizeof(struct enc_options_t));
+
 		if (GetValueFromCtrlFile(fp_in, "ref_frame_num", &value))
 			shcodecs_encoder_set_ref_frame_num (encoder, value);
 		if (GetValueFromCtrlFile(fp_in, "filler_output_on", &value))
 			shcodecs_encoder_set_output_filler_enable (encoder, value);
 	} else {
-		/*** avcbe_other_options_mpeg4 ***/
-		SetMPEGPropsFromFile(fp_in, encoder);
+		SetUnsignedPropsFromFile(fp_in, encoder, mpeg4_options,
+				sizeof(mpeg4_options) / sizeof(struct enc_uoptions_t));
 	}
 
 	shcodecs_encoder_set_frame_no_increment(encoder, 1);
