@@ -23,10 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 #include <string.h>
-#include <fcntl.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
 
@@ -39,7 +36,7 @@ static void
 usage (const char * progname)
 {
 	printf ("Usage: %s <control file> ...\n", progname);
-	printf ("Encode a video file using the SH-Mobile VPU\n");
+	printf ("Encode raw YCbCr4:2:0 image data to a video Elementary Stream using the SH-Mobile VPU\n");
 	printf ("Input on stdin, output on stdout\n");
 	printf ("\nMiscellaneous options\n");
 	printf ("  -h, --help             Display this help and exit\n");
@@ -48,9 +45,10 @@ usage (const char * progname)
 }
 
 struct shenc {
-	APPLI_INFO ainfo; /* Application Data */
 	SHCodecs_Encoder *encoder; /* Encoder */
 	long stream_type;
+	int w;
+	int h;
 };
 
 /* SHCodecs_Encoder_Output callback for writing encoded data to the output file */
@@ -90,14 +88,14 @@ static struct shenc * setup_enc(char * ctl_file)
 	if (!shenc)
 		return NULL;
 
-	ret = ctrlfile_get_params(ctl_file, &shenc->ainfo, &shenc->stream_type);
+	ret = ctrlfile_get_size_type(ctl_file, &shenc->w, &shenc->h, &shenc->stream_type);
 	if (ret < 0) {
 		fprintf(stderr, "Error opening control file");
 		goto err;
 	}
 
 	/* Setup encoder */
-	shenc->encoder = shcodecs_encoder_init(shenc->ainfo.xpic, shenc->ainfo.ypic, shenc->stream_type);
+	shenc->encoder = shcodecs_encoder_init(shenc->w, shenc->h, shenc->stream_type);
 	if (!shenc->encoder) {
 		fprintf(stderr, "Error initialising encoder");
 		goto err;
@@ -128,13 +126,13 @@ int convert_main(char *ctl_file)
 
 	shenc = setup_enc(ctl_file);
 
-	pY = malloc(shenc->ainfo.xpic * shenc->ainfo.ypic);
-	pC = malloc(shenc->ainfo.xpic * shenc->ainfo.ypic / 2);
+	pY = malloc(shenc->w * shenc->h);
+	pC = malloc(shenc->w * shenc->h / 2);
 
 	if (pY && pC && shenc) {
 
 		while (read_1frame_YCbCr420sp(stdin,
-						shenc->ainfo.xpic, shenc->ainfo.ypic, pY, pC) == 0) {
+						shenc->w, shenc->h, pY, pC) == 0) {
 			ret = shcodecs_encoder_encode_1frame(shenc->encoder, pY, pC, 0);
 			if (ret != 0)
 				break;

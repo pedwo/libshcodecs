@@ -332,7 +332,6 @@ int ctrlfile_get_params(const char *ctrl_file,
 	fclose(fp_in);
 
 	return 1;
-
 }
 
 /* Read encoder options from a control file and set them */
@@ -378,5 +377,33 @@ int ctrlfile_set_enc_param(SHCodecs_Encoder * encoder, const char *ctrl_file)
 	fclose(fp_in);
 
 	return 0;
+}
+
+int ctrlfile_get_size_type(const char *ctrl_file,
+		    int *w, int *h, long *type)
+{
+	FILE *fp_in;
+	long value;
+
+	if ((ctrl_file == NULL) ||
+	    (w == NULL) || (h == NULL) || (type == NULL)) {
+		return (-1);
+	}
+
+	fp_in = fopen(ctrl_file, "rt");
+	if (fp_in == NULL) {
+		return (-1);
+	}
+
+	if (GetValueFromCtrlFile(fp_in, "stream_type", &value))
+		*type = value;
+	if (GetValueFromCtrlFile(fp_in, "x_pic_size", &value))
+		*w = value;
+	if (GetValueFromCtrlFile(fp_in, "y_pic_size", &value))
+		*h = value;
+
+	fclose(fp_in);
+
+	return 1;
 }
 

@@ -26,6 +26,9 @@
 int ctrlfile_get_params(const char *ctrl_file,
 		    APPLI_INFO * appli_info, long *stream_type);
 
+int ctrlfile_get_size_type(const char *ctrl_file,
+		    int *w, int *h, long *type);
+
 int ctrlfile_set_enc_param(SHCodecs_Encoder * encoder, const char *ctrl_file);
 
 #endif				/* CONTROL_FILE_UTIL_H */

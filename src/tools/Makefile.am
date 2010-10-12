@@ -19,7 +19,7 @@ noinst_HEADERS = \
 	ControlFileUtil.h
 
 shcodecs_dec_SOURCES = shcodecs-dec.c
-shcodecs_dec_LDADD = -lrt $(SHCODECS_LIBS) $(UIOMUX_LIBS)
+shcodecs_dec_LDADD = $(SHCODECS_LIBS) $(UIOMUX_LIBS)
 
 shcodecs_play_SOURCES = shcodecs-play.c framerate.c display.c
 shcodecs_play_CFLAGS = $(SHVEU_CFLAGS) $(UIOMUX_CFLAGS)
@@ -40,12 +40,11 @@ shcodecs_record_LDADD = $(SHVEU_LIBS) $(SHBEU_LIBS) $(UIOMUX_LIBS) -lrt -lpthrea
 
 shcodecs_enc_SOURCES =  \
 	shcodecs-enc.c \
-	framerate.c \
 	ControlFileUtil.c \
 	avcbeinputuser.c
 
 shcodecs_enc_CFLAGS = $(UIOMUX_CFLAGS)
-shcodecs_enc_LDADD = $(UIOMUX_LIBS) -lrt $(SHCODECS_LIBS)
+shcodecs_enc_LDADD = $(UIOMUX_LIBS) $(SHCODECS_LIBS)
 
 shcodecs_encdec_SOURCES =  \
 	shcodecs-encdec.c \

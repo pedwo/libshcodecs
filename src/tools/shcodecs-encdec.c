@@ -29,7 +29,6 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include <setjmp.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
@@ -96,9 +95,8 @@ static struct option long_options[] = {
 
 
 struct shenc {
-	APPLI_INFO ainfo; /* Application Data */
+	APPLI_INFO ainfo;
 	SHCodecs_Encoder *encoder; /* Encoder */
-	FILE * output_fp;
 	struct framerate * enc_framerate;
 	long stream_type;
 };
@@ -132,11 +130,7 @@ static int write_output(SHCodecs_Encoder * encoder,
 		}
 	}
 
-	if (fwrite(data, 1, length, shenc->output_fp) == (size_t)length) {
-		return 0;
-	} else {
-		return -1;
-	}
+	return write_output_file(&shenc->ainfo, data, length);
 }
 
 void cleanup (struct shenc * shenc)
@@ -158,7 +152,8 @@ void cleanup (struct shenc * shenc)
 	if (shenc->encoder != NULL)
 		shcodecs_encoder_close(shenc->encoder);
 
-	close_output_file(shenc->output_fp);
+	close_input_file(&shenc->ainfo);
+	close_output_file(&shenc->ainfo);
 
 	free (shenc);
 }
@@ -212,16 +207,12 @@ static struct shenc * setup_enc(char * filename)
 	}
 
 	/* open input YUV data file */
-	ret = open_input_image_file(&shenc->ainfo);
-	if (ret != 0) {
+	if (open_input_image_file(&shenc->ainfo)) {
 		fprintf(stderr, "Error opening input file\n");
 		goto err;
 	}
 
-	/* open output file */
-	shenc->output_fp = open_output_file(shenc->ainfo.output_file_name_buf);
-	if (!shenc->output_fp) {
-		fprintf(stderr, "Error opening output file\n");
+	if (open_output_file(&shenc->ainfo)) {
 		goto err;
 	}
 
@@ -262,14 +253,12 @@ struct shdec {
 	size_t		si_isize;	/* Total size of input data */
 
 	long max_nal_size;
-	long total_input_consumed;
-	long total_output_bytes;
 };
 
 
 /* local output callback */
 static int
-local_vpu4_decoded (SHCodecs_Decoder * decoder,
+frame_decoded (SHCodecs_Decoder * decoder,
 		    unsigned char * y_buf, int y_size,
 		    unsigned char * c_buf, int c_size,
 		    void * user_data)
@@ -281,8 +270,6 @@ local_vpu4_decoded (SHCodecs_Decoder * decoder,
 		len = write(dec->output_fd, y_buf, y_size);
 		write(dec->output_fd, c_buf, c_size);
 	}
-
-	dec->total_output_bytes += y_size+c_size;
 
 	return 0;
 }
@@ -407,9 +394,6 @@ static int open_output(struct shdec * dec, char *output_filename)
 static int
 local_init (struct shdec * dec, char *input_filename, char *output_filename)
 {
-	struct timeval tv;
-	struct timezone tz;
-
 	/* Open input/output stream */
 	dec->input_fd = dec->output_fd = -1;
 	if (input_filename != NULL && open_input(dec, input_filename))
@@ -430,9 +414,6 @@ local_init (struct shdec * dec, char *input_filename, char *output_filename)
 		}
 	}
 
-	gettimeofday(&tv, &tz);
-	debug_printf("decode start %ld,%ld\n",tv.tv_sec,tv.tv_usec);
-
 	return 0;
 }
 	
@@ -440,9 +421,6 @@ local_init (struct shdec * dec, char *input_filename, char *output_filename)
 static int
 local_close (struct shdec * dec)
 {
-	struct timeval tv;
-	struct timezone tz;
-
 	if (dec->output_fd != -1 && dec->output_fd > 2)
 		close(dec->output_fd);
 	if (dec->input_fd != -1 && dec->input_fd > 2)
@@ -451,8 +429,6 @@ local_close (struct shdec * dec)
 	if (dec->input_buffer)
 		free(dec->input_buffer);
 
-	gettimeofday(&tv, &tz);
-	debug_printf("%ld,%ld\n",tv.tv_sec,tv.tv_usec);
 	return 0;
 }
 
@@ -461,7 +437,7 @@ int decode(struct dec_opts *opts)
 	struct shdec dec1;
 	struct shdec * dec = &dec1;
 	SHCodecs_Decoder * decoder;
-	int bytes_decoded, frames_decoded;
+	int bytes_decoded;
 	ssize_t n;
 
 	debug_printf("Format: %s\n", opts->format == SHCodecs_Format_H264 ? "H.264" : "MPEG4");
@@ -476,11 +452,6 @@ int decode(struct dec_opts *opts)
 	dec->max_nal_size = (opts->w * opts->h * 3) / 2; /* YCbCr420 */
 	dec->max_nal_size /= 2;                          /* Apply MinCR */
 
-	dec->total_input_consumed = 0;
-	dec->total_output_bytes = 0;
-
-	/* Open file descriptors to talk to the VPU and SDR drivers */
-
 	if ((decoder = shcodecs_decoder_init(opts->w, opts->h, opts->format)) == NULL) {
 		return -1;
 	}
@@ -488,15 +459,13 @@ int decode(struct dec_opts *opts)
 	if (local_init(dec, opts->file_in, opts->file_out) < 0)
 		return -1;
 
-	shcodecs_decoder_set_decoded_callback (decoder, local_vpu4_decoded, dec);
+	shcodecs_decoder_set_decoded_callback (decoder, frame_decoded, dec);
 
 	/* decode main loop */
 	do {
 		int rem;
 
 		bytes_decoded = shcodecs_decode (decoder, dec->input_buffer, dec->si_isize);
-		frames_decoded = shcodecs_decoder_get_frame_count (decoder);
-		if (bytes_decoded > 0) dec->total_input_consumed += bytes_decoded;
 		
 		rem = dec->si_isize - bytes_decoded;
 		memmove(dec->input_buffer, dec->input_buffer + bytes_decoded, rem);
@@ -507,20 +476,13 @@ int decode(struct dec_opts *opts)
 	} while (!(n == 0 && bytes_decoded == 0));
 
 	bytes_decoded = shcodecs_decode (decoder, dec->input_buffer, dec->si_isize);
-	if (bytes_decoded > 0) dec->total_input_consumed += bytes_decoded;
 
 	/* Finalize the decode output, in case a final frame is available */
 	shcodecs_decoder_finalize (decoder);
 
-	frames_decoded = shcodecs_decoder_get_frame_count (decoder);
-	debug_printf("Total frames decoded: %d\n", frames_decoded);
-
 	local_close (dec);
 
 	shcodecs_decoder_close(decoder);
-
-	debug_printf("Total bytes consumed: %ld\n", dec->total_input_consumed);
-	debug_printf("Total bytes output: %ld\n", dec->total_output_bytes);
 
 	return 0;
 }
