@@ -95,7 +95,6 @@ struct encode_data {
 
 	struct Queue * enc_input_q;
 	struct Queue * enc_input_empty_q;
-	FILE *output_fp;
 
 	unsigned long enc_w;
 	unsigned long enc_h;
@@ -366,7 +365,7 @@ static int write_output(SHCodecs_Encoder *encoder,
 		encdata->mbps = framerate_mean_bps (encdata->enc_framerate);
 	}
 
-	if (fwrite(data, 1, length, encdata->output_fp) < (size_t)length)
+	if (write_output_file(&encdata->ainfo, data, length))
 		return -1;
 
 	return (encdata->alive?0:1);
@@ -416,8 +415,8 @@ int cleanup (void)
 			}
 		}
 		shcodecs_encoder_close(pvt->encdata[i].encoder);
-		close_output_file(pvt->encdata[i].output_fp);
-		framerate_destroy (pvt->encdata[i].enc_framerate);
+		close_output_file(&pvt->encdata[i].ainfo);
+		framerate_destroy(pvt->encdata[i].enc_framerate);
 	}
 	fprintf (stderr, "\n");
 
@@ -772,9 +771,7 @@ int main(int argc, char *argv[])
 #endif
 
 		/* VPU Encoder initialisation */
-		pvt->encdata[i].output_fp = open_output_file(pvt->encdata[i].ainfo.output_file_name_buf);
-		if (pvt->encdata[i].output_fp == NULL) {
-			fprintf(stderr, "Error opening output file\n");
+		if (open_output_file(&pvt->encdata[i].ainfo)) {
 			return -8;
 		}
 

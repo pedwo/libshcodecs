@@ -52,9 +52,12 @@ int read_1frame_YCbCr420sp(FILE *fh, int w, int h, unsigned char *pY, unsigned c
 int open_input_image_file(APPLI_INFO * appli_info)
 {
 	appli_info->frame_counter_of_input = 0;
-	appli_info->input_yuv_fp = NULL;
-	appli_info->input_yuv_fp =
-	    fopen(appli_info->input_file_name_buf, "rb");
+
+	if (!strcmp (appli_info->input_file_name_buf, "-"))
+		appli_info->input_yuv_fp = stdin;
+	else
+		appli_info->input_yuv_fp = fopen(appli_info->input_file_name_buf, "rb");
+
 
 	if (appli_info->input_yuv_fp == NULL) {
 		fprintf(stderr, "ERROR: can't open file %s \n",
@@ -63,6 +66,14 @@ int open_input_image_file(APPLI_INFO * appli_info)
 	}
 
 	return (0);
+}
+
+void close_input_file(APPLI_INFO * appli_info)
+{
+	FILE *fp = appli_info->input_yuv_fp;
+
+	if (fp != NULL)
+		fclose(fp);
 }
 
 /* copy yuv data to the image-capture-field area each frame */
@@ -161,25 +172,43 @@ int load_1frame_from_image_file(SHCodecs_Encoder * encoder,
 	return (0);
 }
 
-FILE *
-open_output_file(const char *fname)
+
+int open_output_file(APPLI_INFO * appli_info)
 {
-	FILE *fp = NULL;
+	const char *fname = appli_info->output_file_name_buf;
+	FILE *fp;
 
 	if (!strcmp (fname, "-"))
 		fp = stdout;
 	else
 		fp = fopen(fname, "wb");
 
-	return fp;
+	appli_info->output_file_fp = fp;
+
+	if (fp == NULL) {
+		perror("Error opening output file\n");
+		return -1;
+	}
+
+	return 0;
 }
 
-/* close output file */
-void close_output_file(FILE *fp)
+void close_output_file(APPLI_INFO * appli_info)
 {
+	FILE *fp = appli_info->output_file_fp;
+
 	if (fp != NULL) {
 		fflush(fp);
 		fclose(fp);
+	}
+}
+
+int write_output_file(APPLI_INFO * appli_info, unsigned char *data, int length)
+{
+	if (fwrite(data, 1, length, appli_info->output_file_fp) == (size_t)length) {
+		return 0;
+	} else {
+		return -1;
 	}
 }
 
