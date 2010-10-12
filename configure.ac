@@ -23,7 +23,7 @@ AC_CONFIG_SRCDIR([src/libshcodecs/shcodecs_decoder.c])
 
 AC_PREREQ(2.53)
 
-AM_INIT_AUTOMAKE(libshcodecs, 1.3.0)
+AM_INIT_AUTOMAKE(libshcodecs, 1.3.1)
 AM_CONFIG_HEADER(config.h)
 
 ################################################################################
@@ -43,7 +43,7 @@ AM_CONFIG_HEADER(config.h)
 #     then set AGE to 0.                                                       #
 #                                                                              #
 ################################################################################
-SHARED_VERSION_INFO="11:0:2"
+SHARED_VERSION_INFO="11:1:2"
 SHLIB_VERSION_ARG=""
 
 # Checks for programs.
