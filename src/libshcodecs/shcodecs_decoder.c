@@ -413,6 +413,8 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 
 		ret = decode_frame(decoder);
 
+		m4iph_vpu_unlock(decoder->vpu);
+
 		if (ret == 0) {
 			/* Frame decoded */
 			long index = avcbd_get_decoded_frame(decoder->context, 0);
@@ -426,8 +428,6 @@ static int decoder_start(SHCodecs_Decoder * decoder)
 				decoder->last_cb_ret = 0;
 			}
 		}
-
-		m4iph_vpu_unlock(decoder->vpu);
 
 		if (ret == 1) {
 			/* Would like more data */
