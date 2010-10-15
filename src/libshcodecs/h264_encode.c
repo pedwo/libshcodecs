@@ -614,11 +614,13 @@ h264_encode_finish (SHCodecs_Encoder *enc)
 }
 
 int
-h264_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, int phys)
+h264_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, void *user_data, int phys)
 {
 	unsigned char *phys_py = py;
 	unsigned char *phys_pc = pc;
 	int rc;
+
+	enc->release_user_data_buffer = user_data;
 
 	if (!phys) {
 		/* Copy to contiguous buffer that the VPU can access */
@@ -680,7 +682,7 @@ h264_encode_run (SHCodecs_Encoder *enc)
 			}
 		}
 
-		rc = h264_encode_1frame(enc, enc->addr_y, enc->addr_c, 1);
+		rc = h264_encode_1frame(enc, enc->addr_y, enc->addr_c, NULL, 1);
 		if (rc != 0)
 			return rc;
 	}

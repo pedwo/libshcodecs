@@ -444,11 +444,13 @@ mpeg4_encode_finish (SHCodecs_Encoder *enc)
 }
 
 int
-mpeg4_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, int phys)
+mpeg4_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, void *user_data, int phys)
 {
 	unsigned char *phys_py = py;
 	unsigned char *phys_pc = pc;
 	int rc;
+
+	enc->release_user_data_buffer = user_data;
 
 	// TODO this will not work if encoding B-VOPS
 	if (!phys) {
