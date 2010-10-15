@@ -73,6 +73,7 @@ struct SHCodecs_Encoder {
 
 	SHCodecs_Encoder_Input_Release release;
 	void *release_user_data;
+	void *release_user_data_buffer;
 
 	SHCodecs_Encoder_Output output;
 	void *output_user_data;
@@ -142,12 +143,12 @@ struct SHCodecs_Encoder {
 
 int h264_encode_init  (SHCodecs_Encoder * encoder);
 void h264_encode_close(SHCodecs_Encoder *encoder);
-int h264_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, int phys);
+int h264_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, void *user_data, int phys);
 int h264_encode_finish (SHCodecs_Encoder *enc);
 int h264_encode_run (SHCodecs_Encoder * encoder);
 
 int mpeg4_encode_init (SHCodecs_Encoder * encoder);
-int mpeg4_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, int phys);
+int mpeg4_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, void *user_data, int phys);
 int mpeg4_encode_finish (SHCodecs_Encoder *enc);
 int mpeg4_encode_run (SHCodecs_Encoder * encoder);
 

@@ -108,6 +108,10 @@ shcodecs_encoder_set_input_release_callback (SHCodecs_Encoder * encoder,
                                              SHCodecs_Encoder_Input_Release release_cb,
                                              void * user_data);
 
+void *
+shcodecs_encoder_get_input_user_data(SHCodecs_Encoder *encoder);
+
+
 /**
  * Provide input data to the encoder.
  * This function MUST be called from within an SHCodecs_Encoder_Input callback,
@@ -149,12 +153,13 @@ shcodecs_encoder_run (SHCodecs_Encoder * encoder);
  * \param encoder The SHCodecs_Encoder* handle
  * \param y_input Pointer to the Y plane of input data
  * \param c_input Pointer to the CbCr plane of input data
+ * \param user_data User data that is available during the input release callback
  * \param phys 1=physical address, 0=virtual address (user space)
  * \retval 0 Success
  */
 int
 shcodecs_encoder_encode_1frame(SHCodecs_Encoder * encoder,
-				unsigned char * y_input, unsigned char * c_input, int phys);
+				unsigned char * y_input, unsigned char * c_input, void *user_data, int phys);
 
 /**
  * Finish encoding.

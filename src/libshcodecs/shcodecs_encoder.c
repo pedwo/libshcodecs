@@ -307,6 +307,12 @@ shcodecs_encoder_set_input_release_callback (SHCodecs_Encoder * encoder,
 	return 0;
 }
 
+void *
+shcodecs_encoder_get_input_user_data(SHCodecs_Encoder *encoder)
+{
+	return encoder->release_user_data_buffer;
+}
+
 /**
  * Set the callback for libshcodecs to call when encoded data is available.
  * \param encoder The SHCodecs_Encoder* handle
@@ -343,15 +349,18 @@ int shcodecs_encoder_run(SHCodecs_Encoder * encoder)
 
 int
 shcodecs_encoder_encode_1frame(SHCodecs_Encoder * encoder,
-				unsigned char * y_input, unsigned char * c_input, int phys)
+	unsigned char * y_input,
+	unsigned char * c_input,
+	void *user_data,
+	int phys)
 {
 	if (encoder == NULL)
 		return -1;
 
 	if (encoder->format == SHCodecs_Format_H264)
-		return h264_encode_1frame (encoder, y_input, c_input, phys);
+		return h264_encode_1frame (encoder, y_input, c_input, user_data, phys);
 	else
-		return mpeg4_encode_1frame (encoder, y_input, c_input, phys);
+		return mpeg4_encode_1frame (encoder, y_input, c_input, user_data, phys);
 }
 
 int
