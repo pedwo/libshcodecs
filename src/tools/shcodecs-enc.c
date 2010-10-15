@@ -32,6 +32,13 @@
 #include "ControlFileUtil.h"
 #include "avcbencsmp.h"
 
+static int nr_in=0;
+static int nr_out=0;
+static SHCodecs_Encoder *encoder; /* Encoder */
+static long stream_type;
+static int width;
+static int height;
+
 static void
 usage (const char * progname)
 {
@@ -44,18 +51,11 @@ usage (const char * progname)
 	printf ("\nPlease report bugs to <linux-sh@vger.kernel.org>\n");
 }
 
-struct shenc {
-	SHCodecs_Encoder *encoder; /* Encoder */
-	long stream_type;
-	int w;
-	int h;
-};
-
 /* SHCodecs_Encoder_Output callback for writing encoded data to the output file */
 static int write_output(SHCodecs_Encoder * encoder,
 			unsigned char *data, int length, void *user_data)
 {
-	struct shenc * shenc = (struct shenc *)user_data;
+	nr_out += shcodecs_encoder_get_frame_num_delta(encoder);
 
 	if (fwrite(data, 1, length, stdout) == (size_t)length) {
 		return 0;
@@ -64,81 +64,76 @@ static int write_output(SHCodecs_Encoder * encoder,
 	}
 }
 
-static void cleanup (struct shenc * shenc)
+static void cleanup ()
 {
-	shcodecs_encoder_close(shenc->encoder);
-	free (shenc);
+	shcodecs_encoder_close(encoder);
 }
 
 static void sig_handler(int sig)
 {
-	//cleanup ();
+	cleanup ();
 
 	/* Send ourselves the signal: see http://www.cons.org/cracauer/sigint.html */
 	signal(sig, SIG_DFL);
 	kill(getpid(), sig);
 }
 
-static struct shenc * setup_enc(char * ctl_file)
+static int setup_enc(char * ctl_file)
 {
-	struct shenc * shenc;
 	int ret;
 
-	shenc = calloc (1, sizeof(*shenc));
-	if (!shenc)
-		return NULL;
-
-	ret = ctrlfile_get_size_type(ctl_file, &shenc->w, &shenc->h, &shenc->stream_type);
+	ret = ctrlfile_get_size_type(ctl_file, &width, &height, &stream_type);
 	if (ret < 0) {
 		fprintf(stderr, "Error opening control file");
 		goto err;
 	}
 
 	/* Setup encoder */
-	shenc->encoder = shcodecs_encoder_init(shenc->w, shenc->h, shenc->stream_type);
-	if (!shenc->encoder) {
+	encoder = shcodecs_encoder_init(width, height, stream_type);
+	if (!encoder) {
 		fprintf(stderr, "Error initialising encoder");
 		goto err;
 	}
 
-	shcodecs_encoder_set_output_callback(shenc->encoder, write_output, shenc);
+	shcodecs_encoder_set_output_callback(encoder, write_output, NULL);
 
 	/* set parameters for use in encoding */
-	ret = ctrlfile_set_enc_param(shenc->encoder, ctl_file);
+	ret = ctrlfile_set_enc_param(encoder, ctl_file);
 	if (ret < 0) {
 		fprintf(stderr, "Problem with encoder params in control file!\n");
 		goto err;
 	}
 
-	return shenc;
+	return 0;
 
 err:
-	cleanup(shenc);
-	return NULL;
+	cleanup();
+	return -1;
 }
 
 int convert_main(char *ctl_file)
 {
 	unsigned char *pY;
 	unsigned char *pC;
-	struct shenc *shenc;
 	int ret = -1;
 
-	shenc = setup_enc(ctl_file);
+	if (setup_enc(ctl_file) < 0)
+		return -1;
 
-	pY = malloc(shenc->w * shenc->h);
-	pC = malloc(shenc->w * shenc->h / 2);
+	pY = malloc(width * height);
+	pC = malloc(width * height / 2);
 
-	if (pY && pC && shenc) {
+	if (pY && pC) {
 
 		while (read_1frame_YCbCr420sp(stdin,
-						shenc->w, shenc->h, pY, pC) == 0) {
-			ret = shcodecs_encoder_encode_1frame(shenc->encoder, pY, pC, 0);
+						width, height, pY, pC) == 0) {
+			nr_in++;
+			ret = shcodecs_encoder_encode_1frame(encoder, pY, pC, 0);
 			if (ret != 0)
 				break;
 		}
-		ret = shcodecs_encoder_finish(shenc->encoder);
-		cleanup (shenc);
+		ret = shcodecs_encoder_finish(encoder);
+		cleanup ();
 	}
 
 	free (pY);
@@ -182,6 +177,9 @@ int main(int argc, char *argv[])
 	ret = convert_main(argv[1]);
 	if (ret < 0)
 		fprintf(stderr, "Error encoding\n");
+
+	fprintf(stderr, "%d frames input\n", nr_in);
+	fprintf(stderr, "%d frames output (%d skipped to meet bitrate)\n", nr_out, nr_in-nr_out);
 
 	return ret;
 }

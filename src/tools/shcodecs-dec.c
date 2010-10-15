@@ -223,6 +223,8 @@ int decode(struct dec_opts *opts)
 	/* Finalize the decode output, in case a final frame is available */
 	shcodecs_decoder_finalize (decoder);
 
+	fprintf(stderr, "Decoded %d frames\n", shcodecs_decoder_get_frame_count(decoder));
+
 	shcodecs_decoder_close(decoder);
 	free(dec->input_buffer);
 
