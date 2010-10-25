@@ -52,6 +52,8 @@ struct SHCodecs_Decoder {
 	int		needs_finalization;
 	int		frame_by_frame;
 	int		use_physical;
+	unsigned long frame_addr_y;
+	unsigned long frame_addr_c;
 	int		frame_count;
 	int		last_cb_ret;
 	int		max_nal_size;

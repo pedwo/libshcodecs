@@ -93,6 +93,19 @@ shcodecs_decoder_set_use_physical (SHCodecs_Decoder * decoder,
                                    int use_physical);
 
 /**
+ * Get the physical addresses of the output buffer.
+ * This can only be called in the frame decoded callback.
+ * \param decoder The SHCodecs_Decoder* handle
+ * \param phys_y Returned physical address of Y plane.
+ * \param phys_c Returned physical address of CbCr plane.
+ * \retval 0 Success
+ */
+int
+shcodecs_decoder_get_physical_buf (SHCodecs_Decoder * decoder,
+                                   unsigned long *phys_y,
+                                   unsigned long *phys_c);
+
+/**
  * Decode a buffer of input data. This function will call the previously
  * registered callback each time it has decoded a complete frame. If that
  * callback returns 1, decoding is paused and shcodecs_decode() will

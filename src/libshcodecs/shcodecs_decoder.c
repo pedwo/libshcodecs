@@ -195,6 +195,19 @@ shcodecs_decoder_set_use_physical (SHCodecs_Decoder * decoder, int use_physical)
 }
 
 int
+shcodecs_decoder_get_physical_buf (SHCodecs_Decoder * decoder,
+                                   unsigned long *phys_y,
+                                   unsigned long *phys_c)
+{
+	if (!decoder) return -1;
+
+	*phys_y = decoder->frame_addr_y;
+	*phys_c = decoder->frame_addr_c;
+
+	return 0;
+}
+
+int
 shcodecs_decoder_set_decoded_callback(SHCodecs_Decoder * decoder,
 				      SHCodecs_Decoded_Callback decoded_cb,
 				      void *user_data)
@@ -633,6 +646,9 @@ static int extract_frame(SHCodecs_Decoder * decoder, long frame_index)
 	int size_of_Y = decoder->si_max_fx * decoder->si_max_fy;
 
 	debug_printf("%s: output frame %d, frame_index=%d\n", __func__, decoder->frame_count, frame_index);
+
+	decoder->frame_addr_y = frame->Y_fmemp;
+	decoder->frame_addr_c = frame->Y_fmemp + size_of_Y;
 
 	/* Call user's output callback */
 	if (decoder->decoded_cb) {
