@@ -15,17 +15,16 @@
 		shcodecs_decoder_finalize;
 		shcodecs_decoder_set_frame_by_frame;
 		shcodecs_decoder_get_frame_count;
-		shcodecs_decoder_set_use_physical;
 
 		shcodecs_encoder_init;
 		shcodecs_encoder_close;
 		shcodecs_encoder_set_input_callback;
 		shcodecs_encoder_set_input_release_callback;
-		shcodecs_encoder_set_input_physical_addr;
 		shcodecs_encoder_get_input_user_data;
-		shcodecs_encoder_input_provide;
+		shcodecs_encoder_get_min_input_frames;
 		shcodecs_encoder_set_output_callback;
 		shcodecs_encoder_run;
+		shcodecs_encoder_input_provide;
 		shcodecs_encoder_encode_1frame;
 		shcodecs_encoder_finish;
 		shcodecs_encoder_get_width;

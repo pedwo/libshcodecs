@@ -39,7 +39,6 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <linux/videodev2.h>	/* For pixel formats */
-#include <linux/ioctl.h>
 #include <pthread.h>
 #include <errno.h>
 
@@ -96,8 +95,7 @@ struct encode_data {
 	struct Queue * enc_input_q;
 	struct Queue * enc_input_empty_q;
 
-	unsigned long enc_w;
-	unsigned long enc_h;
+	struct ren_vid_surface enc_surface;
 
 	struct framerate * enc_framerate;
 	int skipsize;
@@ -124,7 +122,7 @@ struct private_data {
 	SHVEU *veu;
 #ifdef HAVE_SHBEU
 	SHBEU *beu;
-	beu_surface_t beu_in[MAX_BLEND_INPUTS];
+	struct shbeu_surface beu_in[MAX_BLEND_INPUTS];
 #endif
 	int rotate_cap;
 };
@@ -177,21 +175,34 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*****************************************************************************/
 
+static void dbg(const char *str1, int l, const char *str2, const struct ren_vid_surface *s)
+{
+//	fprintf(stderr, "%20s:%d: %10s: (%dx%d) pitch=%d py=%p, pc=%p, pa=%p\n", str1, l, str2, s->w, s->h, s->pitch, s->py, s->pc, s->pa);
+}
+
 #ifdef HAVE_SHBEU
 static void blend(
 	SHBEU *beu,
 	DISPLAY *display,
-	beu_surface_t *overlay,
+	struct shbeu_surface *overlay,
 	int nr_inputs)
 {
-	unsigned long bb_phys = display_get_back_buff_phys(display);
+	void *bb = display_get_back_buff(display);
 	int lcd_w = display_get_width(display);
-	beu_surface_t dst;
+	int lcd_h = display_get_height(display);
+	struct shbeu_surface dst;
 
 	/* Destination surface info */
-	dst.py = bb_phys;
-	dst.pitch = lcd_w;
-	dst.format = V4L2_PIX_FMT_RGB565;
+	dst.s.py = bb;
+	dst.s.pc = NULL;
+	dst.s.pa = NULL;
+	dst.s.w = overlay->s.w;
+	dst.s.h = overlay->s.h;
+	dst.s.pitch = lcd_w;
+	dst.s.format = REN_RGB565;
+
+	dbg(__func__, __LINE__, "blend in", &overlay[0]);
+	dbg(__func__, __LINE__, "blend out", &dst);
 
 	if (nr_inputs == 3)
 		shbeu_blend(beu, &overlay[0], &overlay[1], &overlay[2], &dst);
@@ -212,41 +223,50 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 	struct camera_data *cam = (struct camera_data*)user_data;
 	struct private_data *pvt = &pvt_data;
 	struct encode_data *encdata;
-	int pitch, offset;
-	void *ptr;
-	unsigned long enc_y, enc_c;
-	unsigned long cap_y, cap_c;
+	struct ren_vid_surface cap_surface;
+	struct ren_vid_surface *enc_surface;
+	void *cap_y, *cap_c;
 	int i;
 	int enc_alive = 0;
 	int nr_inputs;
 
-	cap_y = (unsigned long) frame_data;
+	cap_y = (void*)frame_data;
 	cap_c = cap_y + (cam->cap_w * cam->cap_h);
+
+	cap_surface.format = REN_NV12;
+	cap_surface.w = cam->cap_w;
+	cap_surface.h = cam->cap_h;
+	cap_surface.pitch = cap_surface.w;
+	cap_surface.py = (void*)frame_data;
+	cap_surface.pc = cap_surface.py + (cap_surface.pitch * cap_surface.h);
+	cap_surface.pa = NULL;
+
+	dbg(__func__, __LINE__, "cap out", &cap_surface);
 
 	for (i=0; i < pvt->nr_encoders; i++) {
 		if (pvt->encdata[i].camera != cam) continue;
 
 		encdata = &pvt->encdata[i];
+		enc_surface = &pvt->encdata[i].enc_surface;
 
 		if (!encdata->alive) continue;
 
 		if (encdata->skipcount == 0) {
-		/* Get an empty encoder input frame */
-		enc_y = (unsigned long) queue_deq(encdata->enc_input_empty_q);
-		enc_c = enc_y + (encdata->enc_w * encdata->enc_h);
+			/* Get an empty encoder input frame */
+			enc_surface->py = queue_deq(encdata->enc_input_empty_q);
+			enc_surface->pc = enc_surface->py + (enc_surface->pitch * enc_surface->h);
 
-		/* We are clipping, not scaling, as we need to perform a rotation,
-		   but the VEU cannot do a rotate & scale at the same time. */
-		shveu_crop(pvt->veu, 1, 0, 0, encdata->enc_w, encdata->enc_h);
-		shveu_rescale(pvt->veu,
-			cap_y, cap_c,
-			cam->cap_w, cam->cap_h, V4L2_PIX_FMT_NV12,
-			enc_y, enc_c,
-			encdata->enc_w, encdata->enc_h, V4L2_PIX_FMT_NV12);
+			dbg(__func__, __LINE__, "enc in", enc_surface);
 
-		encdata->alive = alive;
+			/* Hardware resize */
+			if (shveu_resize(pvt->veu, &cap_surface, enc_surface) != 0) {
+				fprintf(stderr, "shveu_resize failed!\n");
+				exit(0);
+			}
 
-		queue_enq(encdata->enc_input_q, (void*)enc_y);
+			encdata->alive = alive;
+
+			queue_enq(encdata->enc_input_q, enc_surface->py);
 		}
 
 		encdata->skipcount++;
@@ -263,20 +283,15 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 
 #ifdef HAVE_SHBEU
 	if (pvt->do_preview && (cam->index < MAX_BLEND_INPUTS)) {
-		beu_surface_t * beu_input = &pvt->beu_in[cam->index];
+		struct shbeu_surface * beu_input = &pvt->beu_in[cam->index];
 
 		/* Copy the camera image to a BEU input buffer */
 		pthread_mutex_lock(&mutex);
-		shveu_crop(pvt->veu, 1, 0, 0, beu_input->width, beu_input->height);
-		shveu_rescale(pvt->veu,
-			cap_y, cap_c,
-			cam->cap_w, cam->cap_h, V4L2_PIX_FMT_NV12,
-			beu_input->py, beu_input->pc,
-			beu_input->width, beu_input->height, beu_input->format);
+		shveu_resize(pvt->veu, &cap_surface, &beu_input->s);
 		pthread_mutex_unlock(&mutex);
 	}
 
-	capture_queue_buffer (cam->ceu, (void *)cap_y);
+	capture_queue_buffer (cam->ceu, frame_data);
 
 	/* Blend when processing the camera with the smallest frames (assume the last camera) */
 	nr_inputs = (pvt->nr_cameras > MAX_BLEND_INPUTS) ? MAX_BLEND_INPUTS : pvt->nr_cameras;
@@ -287,14 +302,10 @@ capture_image_cb(capture *ceu, const unsigned char *frame_data, size_t length,
 	}
 #else
 	if (cam == pvt->encdata[0].camera && pvt->do_preview) {
-		/* Use the VEU to scale the capture buffer to the frame buffer */
-		display_update(pvt->display,
-				cap_y, cap_c,
-				cam->cap_w, cam->cap_h, cam->cap_w,
-				V4L2_PIX_FMT_NV12);
+		display_update(pvt->display, &cap_surface);
 	}
 
-	capture_queue_buffer (cam->ceu, (void *)cap_y);
+	capture_queue_buffer (cam->ceu, frame_data);
 #endif
 }
 
@@ -314,13 +325,13 @@ void *capture_main(void *data)
 
 /* SHCodecs_Encoder_Input_Release callback */
 static int release_input_buf(SHCodecs_Encoder * encoder,
-                             unsigned char * y_input,
-                             unsigned char * c_input,
-                             void * user_data)
+                             unsigned char *py,
+                             unsigned char *pc,
+                             void *user_data)
 {
 	struct encode_data *encdata = (struct encode_data*)user_data;
 
-	queue_enq (encdata->enc_input_empty_q, y_input);
+	queue_enq (encdata->enc_input_empty_q, py);
 
 	return 0;
 }
@@ -329,12 +340,13 @@ static int release_input_buf(SHCodecs_Encoder * encoder,
 static int get_input(SHCodecs_Encoder *encoder, void *user_data)
 {
 	struct encode_data *encdata = (struct encode_data*)user_data;
-	unsigned long enc_y, enc_c;
+	void *py, *pc;
 
 	/* Get a scaled frame from the queue */
-	enc_y = (unsigned long) queue_deq(encdata->enc_input_q);
-	enc_c = enc_y + (encdata->enc_w * encdata->enc_h);
-	shcodecs_encoder_set_input_physical_addr (encoder, (unsigned int *)enc_y, (unsigned int *)enc_c);
+	py = queue_deq(encdata->enc_input_q);
+	pc = py + (encdata->enc_surface.w * encdata->enc_surface.h);
+
+	shcodecs_encoder_input_provide (encoder, py, pc);
 
 	if (encdata->enc_framerate == NULL) {
 		encdata->enc_framerate = framerate_new_measurer ();
@@ -429,9 +441,8 @@ int cleanup (void)
 
 #ifdef HAVE_SHBEU
 		for (i=0; i < nr_inputs; i++) {
-			size = (pvt->beu_in[i].pitch * pvt->beu_in[i].height * 3) / 2;
-			user = uiomux_phys_to_virt(pvt->uiomux, UIOMUX_SH_BEU, pvt->beu_in[i].py);
-			uiomux_free(pvt->uiomux, UIOMUX_SH_BEU, user, size);
+			size = (pvt->beu_in[i].s.pitch * pvt->beu_in[i].s.h * 3) / 2;
+			uiomux_free(pvt->uiomux, UIOMUX_SH_BEU, pvt->beu_in[i].s.py, size);
 		}
 
 		shbeu_close(pvt->beu);
@@ -491,7 +502,7 @@ void * encode_main (void * data)
 }
 
 #ifdef HAVE_SHBEU
-int create_alpha(UIOMux *uiomux, beu_surface_t *s, int i, int w, int h)
+int create_alpha(UIOMux *uiomux, struct shbeu_surface *s, int i, int w, int h)
 {
 	unsigned char *alpha;
 	int tmp;
@@ -499,12 +510,11 @@ int create_alpha(UIOMux *uiomux, beu_surface_t *s, int i, int w, int h)
 	int x, y;
 
 	size = w * h;
-	alpha = uiomux_malloc (uiomux, UIOMUX_SH_BEU, size, 32);
+	s->s.pa = alpha = uiomux_malloc (uiomux, UIOMUX_SH_BEU, size, 32);
 	if (!alpha) {
 		perror("uiomux_malloc");
 		return -1;
 	}
-	s->pa = uiomux_virt_to_phys (uiomux, UIOMUX_SH_BEU, alpha);
 
 	for (y=0; y<h; y++) {
 		for (x=0; x<w; x++) {
@@ -513,9 +523,11 @@ int create_alpha(UIOMux *uiomux, beu_surface_t *s, int i, int w, int h)
 			*alpha++ = (unsigned char)tmp;
 		}
 	}
+	return 0;
 }
 
-int setup_input_surface(DISPLAY *disp, UIOMux *uiomux, beu_surface_t *s, int i, int w, int h)
+/* This is only used when blending multiple camera outputs onto the screen */
+int setup_input_surface(DISPLAY *disp, UIOMux *uiomux, struct shbeu_surface *s, int i, int w, int h)
 {
 	float lcd_aspect, cam_aspect;
 	void *user;
@@ -535,10 +547,6 @@ int setup_input_surface(DISPLAY *disp, UIOMux *uiomux, beu_surface_t *s, int i, 
 		w = (int)((float)h * cam_aspect);
 	}
 
-	/* VEU size limitation */
-	w = w - (w%4);
-	h = h - (h%4);
-
 	size = (w * h * 3)/2;
 	user = uiomux_malloc (uiomux, UIOMUX_SH_BEU, size, 32);
 	if (!user) {
@@ -546,16 +554,17 @@ int setup_input_surface(DISPLAY *disp, UIOMux *uiomux, beu_surface_t *s, int i, 
 		return -1;
 	}
 
-	s->width = w;
-	s->height = h;
-	s->pitch = w;
-	s->py = uiomux_virt_to_phys (uiomux, UIOMUX_SH_BEU, user);
-	s->pc = s->py + (w * h);
-	s->pa = 0;
+	s->s.format = REN_NV12;
+	s->s.w = w;
+	s->s.h = h;
+	s->s.pitch = w;
+	s->s.py = user;
+	s->s.pc = s->s.py + (w * h);
+	s->s.pa = 0;
+
 	s->alpha = 255 - i*70;	/* 1st layer opaque, others semi-transparent */
 	s->x = 0;
 	s->y = 0;
-	s->format = V4L2_PIX_FMT_NV12;
 
 	if (i > 0)
 		create_alpha(uiomux, s, i, w, h);
@@ -570,7 +579,7 @@ int main(int argc, char *argv[])
 	int return_code, rc;
 	void *thread_ret;
 	unsigned int pixel_format;
-	int c, i=0;
+	int c, i=0, j, size;
 	long target_fps10;
 	double target_mbps;
 	unsigned long rotate_input;
@@ -686,52 +695,55 @@ int main(int argc, char *argv[])
 
 
 	for (i=0; i < pvt->nr_encoders; i++) {
-		if ( (strcmp(pvt->encdata[i].ctrl_filename, "-") == 0) ||
-				(pvt->encdata[i].ctrl_filename[0] == '\0') ){
+		struct encode_data *encdata = &pvt->encdata[i];
+
+		if ( (strcmp(encdata->ctrl_filename, "-") == 0) ||
+				(encdata->ctrl_filename[0] == '\0') ){
 			fprintf(stderr, "Invalid v4l2 configuration file - %s\n",
-				pvt->encdata[i].ctrl_filename);
+				encdata->ctrl_filename);
 			return -1;
 		}
 
-		return_code = ctrlfile_get_params(pvt->encdata[i].ctrl_filename,
-				&pvt->encdata[i].ainfo, &pvt->encdata[i].stream_type);
+		return_code = ctrlfile_get_params(encdata->ctrl_filename,
+				&encdata->ainfo, &encdata->stream_type);
 		if (return_code < 0) {
-			fprintf(stderr, "Error opening control file %s.\n", pvt->encdata[i].ctrl_filename);
+			fprintf(stderr, "Error opening control file %s.\n", encdata->ctrl_filename);
 			return -2;
 		}
 
-		pvt->encdata[i].camera = get_camera (pvt->encdata[i].ainfo.input_file_name_buf, pvt->encdata[i].ainfo.xpic, pvt->encdata[i].ainfo.ypic);
+		encdata->camera = get_camera (encdata->ainfo.input_file_name_buf, encdata->ainfo.xpic, encdata->ainfo.ypic);
 
-		debug_printf("[%d] Input file: %s\n", i, pvt->encdata[i].ainfo.input_file_name_buf);
-		debug_printf("[%d] Output file: %s\n", i, pvt->encdata[i].ainfo.output_file_name_buf);
+		debug_printf("[%d] Input file: %s\n", i, encdata->ainfo.input_file_name_buf);
+		debug_printf("[%d] Output file: %s\n", i, encdata->ainfo.output_file_name_buf);
 
 		/* Initialize the queues */
-		pvt->encdata[i].enc_input_q = queue_init();
-		pvt->encdata[i].enc_input_empty_q = queue_init();
+		encdata->enc_input_q = queue_init();
+		encdata->enc_input_empty_q = queue_init();
 	}
 
 	for (i=0; i < pvt->nr_cameras; i++) {
+		struct camera_data *cam = &pvt->cameras[i];
+
 		/* Camera capture initialisation */
-		pvt->cameras[i].ceu = capture_open_userio(pvt->cameras[i].devicename, pvt->cameras[i].cap_w, pvt->cameras[i].cap_h, pvt->uiomux);
-		if (pvt->cameras[i].ceu == NULL) {
+		cam->ceu = capture_open_userio(cam->devicename, cam->cap_w, cam->cap_h, pvt->uiomux);
+		if (cam->ceu == NULL) {
 			fprintf(stderr, "capture_open failed, exiting\n");
 			return -3;
 		}
-		capture_set_use_physical(pvt->cameras[i].ceu, 1);
-		pvt->cameras[i].cap_w = capture_get_width(pvt->cameras[i].ceu);
-		pvt->cameras[i].cap_h = capture_get_height(pvt->cameras[i].ceu);
+		cam->cap_w = capture_get_width(cam->ceu);
+		cam->cap_h = capture_get_height(cam->ceu);
 
-		pixel_format = capture_get_pixel_format (pvt->cameras[i].ceu);
+		pixel_format = capture_get_pixel_format (cam->ceu);
 		if (pixel_format != V4L2_PIX_FMT_NV12) {
 			fprintf(stderr, "Camera capture pixel format is not supported\n");
 			return -4;
 		}
-		debug_printf("Camera %d resolution:  %dx%d\n", i, pvt->cameras[i].cap_w, pvt->cameras[i].cap_h);
+		debug_printf("Camera %d resolution:  %dx%d\n", i, cam->cap_w, cam->cap_h);
 
 #ifdef HAVE_SHBEU
 		/* BEU input */
 		if (pvt->do_preview && (i < MAX_BLEND_INPUTS)) {
-			if (setup_input_surface(pvt->display, pvt->uiomux, &pvt->beu_in[i], i, pvt->cameras[i].cap_w, pvt->cameras[i].cap_h) < 0) {
+			if (setup_input_surface(pvt->display, pvt->uiomux, &pvt->beu_in[i], i, cam->cap_w, cam->cap_h) < 0) {
 				fprintf(stderr, "Failed to allocate UIO memory (BEU).\n");
 				return -1;
 			}
@@ -746,54 +758,60 @@ int main(int argc, char *argv[])
 	fprintf (stderr, "--------\n");
 	fprintf (stderr, "Size:     ");
 	for (i=0; i < pvt->nr_encoders; i++) {
+		struct encode_data *encdata = &pvt->encdata[i];
+
 #if 0
 		if (pvt->rotate_cap == SHVEU_NO_ROT) {
-			pvt->encdata[i].enc_w = pvt->cap_w;
-			pvt->encdata[i].enc_h = pvt->cap_h;
+			encdata->enc_w = pvt->cap_w;
+			encdata->enc_h = pvt->cap_h;
 		} else {
-			pvt->encdata[i].enc_w = pvt->cap_h;
-			pvt->encdata[i].enc_h = pvt->cap_h * pvt->cap_h / pvt->cap_w;
+			encdata->enc_w = pvt->cap_h;
+			encdata->enc_h = pvt->cap_h * pvt->cap_h / pvt->cap_w;
 			/* Round down to nearest multiple of 16 for VPU */
-			pvt->encdata[i].enc_w = pvt->encdata[i].enc_w - (pvt->encdata[i].enc_w % 16);
-			pvt->encdata[i].enc_h = pvt->encdata[i].enc_h - (pvt->encdata[i].enc_h % 16);
+			encdata->enc_w = encdata->enc_w - (encdata->enc_w % 16);
+			encdata->enc_h = encdata->enc_h - (encdata->enc_h % 16);
 			debug_printf("[%d] Rotating & cropping camera image ...\n", i);
 		}
 #else
-		/* Override the encoding frame size in case of rotation */
-		if (pvt->rotate_cap == SHVEU_NO_ROT) {
-			pvt->encdata[i].enc_w = pvt->encdata[i].ainfo.xpic;
-			pvt->encdata[i].enc_h = pvt->encdata[i].ainfo.ypic;
-		} else {
-			pvt->encdata[i].enc_w = pvt->encdata[i].ainfo.ypic;
-			pvt->encdata[i].enc_h = pvt->encdata[i].ainfo.xpic;
-		}
-		debug_printf("\t%dx%d", pvt->encdata[i].enc_w, pvt->encdata[i].enc_h);
+		encdata->enc_surface.format = REN_NV12;
+		encdata->enc_surface.w = encdata->ainfo.xpic;
+		encdata->enc_surface.h = encdata->ainfo.ypic;
+		encdata->enc_surface.pitch = encdata->enc_surface.w;
+		encdata->enc_surface.py = NULL;
+		encdata->enc_surface.pc = NULL;
+		encdata->enc_surface.pa = NULL;
+
+		debug_printf("\t%dx%d", encdata->enc_surface.w, encdata->enc_surface.h);
 #endif
 
 		/* VPU Encoder initialisation */
-		if (open_output_file(&pvt->encdata[i].ainfo)) {
+		if (open_output_file(&encdata->ainfo)) {
 			return -8;
 		}
 
-		pvt->encdata[i].encoder = shcodecs_encoder_init(pvt->encdata[i].enc_w, pvt->encdata[i].enc_h, pvt->encdata[i].stream_type);
-		if (pvt->encdata[i].encoder == NULL) {
+		encdata->encoder = shcodecs_encoder_init(encdata->enc_surface.w, encdata->enc_surface.h, encdata->stream_type);
+		if (encdata->encoder == NULL) {
 			fprintf(stderr, "shcodecs_encoder_init failed, exiting\n");
 			return -5;
 		}
-		shcodecs_encoder_set_input_callback(pvt->encdata[i].encoder, get_input, &pvt->encdata[i]);
-		shcodecs_encoder_set_output_callback(pvt->encdata[i].encoder, write_output, &pvt->encdata[i]);
-		shcodecs_encoder_set_input_release_callback(pvt->encdata[i].encoder, release_input_buf, &pvt->encdata[i]);
+		shcodecs_encoder_set_input_callback(encdata->encoder, get_input,encdata);
+		shcodecs_encoder_set_output_callback(encdata->encoder, write_output, encdata);
+		shcodecs_encoder_set_input_release_callback(encdata->encoder, release_input_buf, encdata);
 
-		return_code = ctrlfile_set_enc_param(pvt->encdata[i].encoder, pvt->encdata[i].ctrl_filename);
+		return_code = ctrlfile_set_enc_param(encdata->encoder, encdata->ctrl_filename);
 		if (return_code < 0) {
 			fprintf (stderr, "Problem with encoder params in control file!\n");
 			return -9;
 		}
 
-		//shcodecs_encoder_set_xpic_size(pvt->encdata[i].encoder, pvt->encdata[i].enc_w);
-		//shcodecs_encoder_set_ypic_size(pvt->encdata[i].encoder, pvt->encdata[i].enc_h);
+		/* Allocate encoder input frames & and add them to empty queue */
+		size = (encdata->enc_surface.w * encdata->enc_surface.h * 3) / 2;
+		for (j=0; j<shcodecs_encoder_get_min_input_frames(encdata->encoder); j++) {
+			void *user = uiomux_malloc (pvt->uiomux, UIOMUX_SH_VPU, size, 32);
+			queue_enq (encdata->enc_input_empty_q, user);
+		}
 
-		pvt->encdata[i].alive = 1;
+		encdata->alive = 1;
 	}
 
 	/* Set up framedropping */

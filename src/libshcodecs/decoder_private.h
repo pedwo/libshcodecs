@@ -47,11 +47,10 @@ struct SHCodecs_Decoder {
 	TAVCBD_SEI 	*sei_data;	/* Only for H.264 data. */
 
 	SHCodecs_Decoded_Callback decoded_cb;
-	void		*decoded_cb_data;
+	void	*decoded_cb_data;
 
 	int		needs_finalization;
 	int		frame_by_frame;
-	int		use_physical;
 	int		frame_count;
 	int		last_cb_ret;
 	int		max_nal_size;

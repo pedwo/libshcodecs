@@ -118,12 +118,9 @@ void shcodecs_encoder_close(SHCodecs_Encoder * encoder)
 	width_height = ROUND_UP_16(encoder->width) * ROUND_UP_16(encoder->height);
 	width_height += (width_height / 2);
 
-	/* Input buffers */
-	if (encoder->allocate) {
-		for (i=0; i<NUM_INPUT_FRAMES; i++) {
-			if (encoder->input_frames[i].Y_fmemp)
-				m4iph_sdr_free(encoder->vpu, encoder->input_frames[i].Y_fmemp, width_height);
-		}
+	/* Local input frame */
+	if (encoder->input_frame) {
+		m4iph_sdr_free(encoder->vpu, encoder->input_frame, width_height);
 	}
 
 	/* Local decode images */
@@ -184,8 +181,6 @@ SHCodecs_Encoder *shcodecs_encoder_init(int width, int height,
 	encoder->height = height;
 	encoder->format = format;
 
-	encoder->allocate = 1;
-
 	encoder->input = NULL;
 	encoder->output = NULL;
 
@@ -208,16 +203,6 @@ SHCodecs_Encoder *shcodecs_encoder_init(int width, int height,
 	width_height += (width_height / 2);
 
 	encoder->y_bytes = (((encoder->width + 15) / 16) * 16) * (((encoder->height + 15) / 16) * 16);
-
-	/* Input buffers */
-	if (encoder->allocate) {
-		for (i=0; i<NUM_INPUT_FRAMES; i++) {
-			pY = m4iph_sdr_malloc(encoder->vpu, width_height, 32);
-			if (!pY) goto err;
-			encoder->input_frames[i].Y_fmemp = pY;
-			encoder->input_frames[i].C_fmemp = pY + encoder->y_bytes;
-		}
-	}
 
 	/* Local decode images. This is the number of reference frames plus one
 	   for the locally decoded output */
@@ -349,18 +334,17 @@ int shcodecs_encoder_run(SHCodecs_Encoder * encoder)
 
 int
 shcodecs_encoder_encode_1frame(SHCodecs_Encoder * encoder,
-	unsigned char * y_input,
-	unsigned char * c_input,
-	void *user_data,
-	int phys)
+	void *y_input,
+	void *c_input,
+	void *user_data)
 {
 	if (encoder == NULL)
 		return -1;
 
 	if (encoder->format == SHCodecs_Format_H264)
-		return h264_encode_1frame (encoder, y_input, c_input, user_data, phys);
+		return h264_encode_1frame (encoder, y_input, c_input, user_data);
 	else
-		return mpeg4_encode_1frame (encoder, y_input, c_input, user_data, phys);
+		return mpeg4_encode_1frame (encoder, y_input, c_input, user_data);
 }
 
 int
@@ -378,13 +362,12 @@ shcodecs_encoder_finish(SHCodecs_Encoder * encoder)
 
 int
 shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder, 
-				unsigned char * y_input, unsigned char * c_input)
+				void *y_input, void *c_input)
 {
-	/* Write image data to kernel memory for VPU */
-	m4iph_vpu_lock(encoder->vpu);
-	m4iph_sdr_write(encoder->addr_y, y_input, encoder->y_bytes);
-	m4iph_sdr_write(encoder->addr_c, c_input, encoder->y_bytes / 2);
-	m4iph_vpu_unlock(encoder->vpu);
+	if (encoder == NULL) return -1;
+
+	encoder->addr_y = y_input;
+	encoder->addr_c = c_input;
 
 	return 0;
 }
@@ -413,21 +396,14 @@ shcodecs_encoder_get_frame_num_delta(SHCodecs_Encoder *encoder)
 	return encoder->frame_num_delta;
 }
 
-/**
- * Set the physical address of input data.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns size in bytes of CbCr plane.
- * \retval -1 \a encoder invalid
- */
 int
-shcodecs_encoder_set_input_physical_addr (SHCodecs_Encoder * encoder, 
-                    unsigned int *addr_y, unsigned int *addr_c)
+shcodecs_encoder_get_min_input_frames(SHCodecs_Encoder *encoder)
 {
-       if (encoder == NULL) return -1;
+	if (encoder == NULL) return -1;
 
-       encoder->addr_y = (unsigned char *)addr_y;
-       encoder->addr_c = (unsigned char *)addr_c;
-
-       return 0;
+	if (encoder->format == SHCodecs_Format_H264) {
+		return 1;
+	} else {
+		return encoder->other_options_mpeg4.avcbe_b_vop_num;
+	}
 }
-

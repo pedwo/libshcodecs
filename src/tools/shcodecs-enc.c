@@ -128,7 +128,7 @@ int convert_main(char *ctl_file)
 		while (read_1frame_YCbCr420sp(stdin,
 						width, height, pY, pC) == 0) {
 			nr_in++;
-			ret = shcodecs_encoder_encode_1frame(encoder, pY, pC, NULL, 0);
+			ret = shcodecs_encoder_encode_1frame(encoder, pY, pC, NULL);
 			if (ret != 0)
 				break;
 		}

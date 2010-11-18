@@ -396,23 +396,6 @@ mpeg4_encode_start (SHCodecs_Encoder *enc)
 	int cb_ret;
 	unsigned long i;
 
-	if (enc->allocate) {
-#ifdef USE_BVOP
-		for (i=0; i < (enc->other_options_mpeg4.avcbe_b_vop_num + 1); i++) {
-			enc->addr_y_tbl[i] = enc->input_frames[i].Y_fmemp;
-			enc->addr_c_tbl[i] = enc->input_frames[i].C_fmemp;
-		}
-#endif
-
-		rc = mpeg4_release_input_buffers(enc);
-		if (rc != 0)
-			return rc;
-
-		/* Fixed input buffer if client doesn't change it */
-		enc->addr_y = enc->input_frames[0].Y_fmemp;
-		enc->addr_c = enc->input_frames[0].C_fmemp;
-	}
-
 	enc->ldec = 0;		/* Index number of the image-work-field area */
 	enc->ref1 = 0;
 	enc->frm = 0;		/* Frame number to be encoded */
@@ -444,27 +427,28 @@ mpeg4_encode_finish (SHCodecs_Encoder *enc)
 }
 
 int
-mpeg4_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, void *user_data, int phys)
+mpeg4_encode_1frame(SHCodecs_Encoder *enc, void *py, void *pc, void *user_data)
 {
-	unsigned char *phys_py = py;
-	unsigned char *phys_pc = pc;
+	void *phys_py = (void *)uiomux_all_virt_to_phys(py);
+	void *phys_pc = (void *)uiomux_all_virt_to_phys(pc);
 	int rc;
 
 	enc->release_user_data_buffer = user_data;
 
-	// TODO this will not work if encoding B-VOPS
-	if (!phys) {
-		/* Copy to contiguous buffer that the VPU can access */
-		phys_py = enc->input_frames[0].Y_fmemp;
-		phys_pc = enc->input_frames[0].C_fmemp;
-
+	/* Can the buffers passed to us be used by the hardware? */
+	/* If not allocate buffer that we can use and copy the input */
+	if (!phys_py || !phys_pc) {
+		if (!enc->input_frame) {
+			enc->input_frame = m4iph_sdr_malloc(enc->vpu, (enc->y_bytes*3)/2, 32);
+			if (!enc->input_frame)
+				return -1;
+		}
+		phys_py = enc->input_frame;
+		phys_pc = phys_py + enc->y_bytes;
 		m4iph_vpu_lock(enc->vpu);
 		m4iph_sdr_write(phys_py, py, enc->y_bytes);
-		m4iph_sdr_write(phys_pc, pc, enc->y_bytes / 2);
+		m4iph_sdr_write(phys_pc, pc, enc->y_bytes/2);
 		m4iph_vpu_unlock(enc->vpu);
-
-		if (enc->release)
-			enc->release(enc, py, pc, enc->release_user_data);
 	}
 
 	if (enc->initialized < 3) {
@@ -477,7 +461,8 @@ mpeg4_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc,
 	rc = mpeg4_encode_frame(enc, phys_py, phys_pc);
 	m4iph_vpu_unlock(enc->vpu);
 
-	if (phys && enc->release)
+	// TODO can't just release this buffer when using BVOPs...
+	if (enc->release)
 		enc->release(enc, py, pc, enc->release_user_data);
 
 	return rc;

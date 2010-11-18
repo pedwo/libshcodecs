@@ -27,6 +27,8 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include <uiomux/uiomux.h>
+
 #include "avcbe.h"		/* SuperH MEPG-4&H.264 Video Encode Library Header */
 #include "m4iph_vpu4.h"		/* SuperH MEPG-4&H.264 Video Driver Library Header */
 #include "encoder_common.h"
@@ -556,22 +558,6 @@ h264_encode_start(SHCodecs_Encoder *enc)
 			return rc;
 	}
 
-	if (enc->allocate) {
-		/* Fixed input buffer if client doesn't change it */
-		enc->addr_y = enc->input_frames[0].Y_fmemp;
-		enc->addr_c = enc->input_frames[0].C_fmemp;
-
-		/* Release all input buffers */
-		for (j=0; j < NUM_INPUT_FRAMES; j++) {
-			if (enc->release) {
-				enc->release (enc,
-					enc->input_frames[j].Y_fmemp,
-					enc->input_frames[j].C_fmemp,
-					enc->release_user_data);
-			}
-		}
-	}
-
 	/* Setup VUI parameters */
 	if (enc->other_options_h264.avcbe_out_vui_parameters == AVCBE_ON) {
 		rc = setup_vui_params(enc);
@@ -614,26 +600,28 @@ h264_encode_finish (SHCodecs_Encoder *enc)
 }
 
 int
-h264_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, void *user_data, int phys)
+h264_encode_1frame(SHCodecs_Encoder *enc, void *py, void *pc, void *user_data)
 {
-	unsigned char *phys_py = py;
-	unsigned char *phys_pc = pc;
+	void *phys_py = (void *)uiomux_all_virt_to_phys(py);
+	void *phys_pc = (void *)uiomux_all_virt_to_phys(pc);
 	int rc;
 
 	enc->release_user_data_buffer = user_data;
 
-	if (!phys) {
-		/* Copy to contiguous buffer that the VPU can access */
-		phys_py = enc->input_frames[0].Y_fmemp;
-		phys_pc = enc->input_frames[0].C_fmemp;
-
+	/* Can the buffers passed to us be used by the hardware? */
+	/* If not allocate buffer that we can use and copy the input */
+	if (!phys_py || !phys_pc) {
+		if (!enc->input_frame) {
+			enc->input_frame = m4iph_sdr_malloc(enc->vpu, enc->y_bytes*3/2, 32);
+			if (!enc->input_frame)
+				return -1;
+		}
+		phys_py = enc->input_frame;
+		phys_pc = phys_py + enc->y_bytes;
 		m4iph_vpu_lock(enc->vpu);
 		m4iph_sdr_write(phys_py, py, enc->y_bytes);
-		m4iph_sdr_write(phys_pc, pc, enc->y_bytes / 2);
+		m4iph_sdr_write(phys_pc, pc, enc->y_bytes/2);
 		m4iph_vpu_unlock(enc->vpu);
-
-		if (enc->release)
-			enc->release(enc, py, pc, enc->release_user_data);
 	}
 
 	if (enc->initialized < 3) {
@@ -648,7 +636,7 @@ h264_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, 
 	rc = h264_encode_frame(enc, phys_py, phys_pc);
 	m4iph_vpu_unlock(enc->vpu);
 
-	if (phys && enc->release)
+	if (enc->release)
 		enc->release(enc, py, pc, enc->release_user_data);
 
 	return rc;
@@ -682,7 +670,7 @@ h264_encode_run (SHCodecs_Encoder *enc)
 			}
 		}
 
-		rc = h264_encode_1frame(enc, enc->addr_y, enc->addr_c, NULL, 1);
+		rc = h264_encode_1frame(enc, enc->addr_y, enc->addr_c, NULL);
 		if (rc != 0)
 			return rc;
 	}

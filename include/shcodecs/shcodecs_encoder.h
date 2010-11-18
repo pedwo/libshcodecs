@@ -126,7 +126,7 @@ shcodecs_encoder_get_input_user_data(SHCodecs_Encoder *encoder);
  */
 int
 shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder, 
-                                unsigned char * y_input, unsigned char * c_input);
+                                void *y_input, void *c_input);
 
 
 /**
@@ -147,19 +147,16 @@ shcodecs_encoder_run (SHCodecs_Encoder * encoder);
  * The encoder will then perform 1 or more callbacks to output encoded data.
  * It also makes callbacks to release the input frames once they can be used
  * for new data.
- * If phys=0, you can assume the input buffers can be used for new data upon
- * return of this function.
  * If you use this function, you cannot use shcodecs_encoder_run
  * \param encoder The SHCodecs_Encoder* handle
  * \param y_input Pointer to the Y plane of input data
  * \param c_input Pointer to the CbCr plane of input data
  * \param user_data User data that is available during the input release callback
- * \param phys 1=physical address, 0=virtual address (user space)
  * \retval 0 Success
  */
 int
 shcodecs_encoder_encode_1frame(SHCodecs_Encoder * encoder,
-				unsigned char * y_input, unsigned char * c_input, void *user_data, int phys);
+	void *y_input, void *c_input, void *user_data);
 
 /**
  * Finish encoding.
@@ -197,16 +194,16 @@ int
 shcodecs_encoder_get_frame_num_delta(SHCodecs_Encoder *encoder);
 
 /**
- * Set the physical address of input data.
- * This function must ONLY be called from within an SHCodecs_Encoder_Input callback.
+ * Get the minimum number of input frames required.
+ * Since the encoder may encoder frames out of order due to BVOPs, it may not
+ * release an input buffer immediately. Therefore, you may need to use several
+ * input frames.
  * \param encoder The SHCodecs_Encoder* handle
- * \param addr_y Pointer to the Y plane of input data
- * \param addr_C Pointer to the CbCr plane of input data
+ * \retval The minimum number of input frames required
  * \retval -1 \a encoder invalid
  */
 int
-shcodecs_encoder_set_input_physical_addr (SHCodecs_Encoder * encoder, 
-                                          unsigned int *addr_y, unsigned int *addr_C);
+shcodecs_encoder_get_min_input_frames(SHCodecs_Encoder *encoder);
 
 #include <shcodecs/encode_general.h>
 #include <shcodecs/encode_properties.h>

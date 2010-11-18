@@ -82,9 +82,9 @@ struct SHCodecs_Encoder {
 	long error_return_code;	/* return_value of the API function when error ocuured */
 
 	/* Internal */
-	int allocate; /* Whether or not shcodecs should allocate/free input buffers */
 	int initialized; /* Is avcbe_encode_init() done? */
 	int y_bytes; /* Bytes used by Y input plane; CbCr plane uses y_bytes/2 */
+	unsigned char * input_frame;
 	unsigned char * addr_y; /* VPU address to write next Y plane; updated by encoder backends */
 	unsigned char * addr_c; /* VPU address to write next C plane; updated by encoder backends */
 	unsigned char *addr_y_tbl[17], *addr_c_tbl[17];
@@ -100,7 +100,6 @@ struct SHCodecs_Encoder {
 
 	/* Working values */
 	TAVCBE_FMEM local_frames[NUM_LDEC_FRAMES];
-	TAVCBE_FMEM input_frames[NUM_INPUT_FRAMES];
 	TAVCBE_WORKAREA work_area;
 	TAVCBE_WORKAREA backup_area;
 
@@ -143,12 +142,12 @@ struct SHCodecs_Encoder {
 
 int h264_encode_init  (SHCodecs_Encoder * encoder);
 void h264_encode_close(SHCodecs_Encoder *encoder);
-int h264_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, void *user_data, int phys);
+int h264_encode_1frame(SHCodecs_Encoder *enc, void *py, void *pc, void *user_data);
 int h264_encode_finish (SHCodecs_Encoder *enc);
 int h264_encode_run (SHCodecs_Encoder * encoder);
 
 int mpeg4_encode_init (SHCodecs_Encoder * encoder);
-int mpeg4_encode_1frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc, void *user_data, int phys);
+int mpeg4_encode_1frame(SHCodecs_Encoder *enc, void *py, void *pc, void *user_data);
 int mpeg4_encode_finish (SHCodecs_Encoder *enc);
 int mpeg4_encode_run (SHCodecs_Encoder * encoder);
 

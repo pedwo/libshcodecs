@@ -162,7 +162,7 @@ int load_1frame_from_image_file(SHCodecs_Encoder * encoder,
 	}
 
 	/* Write image data to kernel memory for VPU */
-	shcodecs_encoder_encode_1frame(encoder, w_addr_yuv, CbCr_ptr, NULL, 0);
+	shcodecs_encoder_encode_1frame(encoder, w_addr_yuv, CbCr_ptr, NULL);
 
 	free(w_addr_yuv);
 	free(Cb_buf_ptr);
