@@ -121,13 +121,13 @@ AC_SUBST(VPU4_ENC_LIBS)
 dnl
 dnl Check for libuiomux
 dnl
-PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.3.0)
+PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.5.0)
 
 
 dnl
 dnl Check for libshveu
 dnl
-PKG_CHECK_MODULES(SHVEU, shveu >= 1.4.0)
+PKG_CHECK_MODULES(SHVEU, shveu >= 1.5.0)
 
 
 dnl
@@ -139,7 +139,7 @@ AC_ARG_ENABLE(beu,
 if test "${enable_beu}" = "no" ; then
     HAVE_SHBEU=no
 else
-    PKG_CHECK_MODULES(SHBEU, shbeu >= 0.0.1, HAVE_SHBEU="yes", HAVE_SHBEU="no")
+    PKG_CHECK_MODULES(SHBEU, shbeu >= 1.0.0, HAVE_SHBEU="yes", HAVE_SHBEU="no")
 
     if test "$HAVE_SHBEU" = "yes" ; then
 	AC_DEFINE(HAVE_SHBEU, [], [Define to 1 if shbeu is available])
