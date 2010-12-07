@@ -1,0 +1,102 @@
+libshcodecs 1.4.0 Release
+=========================
+
+libshcodecs is a library for controlling SH-Mobile hardware codecs.
+
+The [SH-Mobile][0] processor series includes a hardware video processing
+unit that supports MPEG-4 and H.264 encoding and decoding.
+libshcodecs is available under the terms of the GNU LGPL.
+
+The source archive, and more information about the library are available from:
+
+	https://oss.renesas.com/modules/document/?libshcodecs
+
+
+New in this release
+-------------------
+
+This release changes the API to use virtual addresses rather than physical
+addresses. If the virtual address corresponds to a contiguous buffer that can
+be directly accessed by the VPU (i.e. allocated or registered with UIOMux), no
+copying is performed. Otherwise the data is copied accordingly.
+
+
+Details
+-------
+
+This release includes the following changes since version 1.3.1:
+
+Phil Edworthy (31):
+      Fix required version of UIOmux, libshveu & libshbeu
+      Merge branch 'encoder_rework'
+      tools; Clean up v4l2 capture code
+      API changed to remove physical addresses.
+      dec: Move VPU lock so that it's not held during callback
+      dec: Add func to get both the phys addresses for output frames.
+      Merge branch 'encoder_rework' of https://github.com/pedwo/libshcodecs into encoder_rework
+      enc: Support buffer specific data for used input buffers
+      tools: Remove some of the junk from the encoder control files
+      tools: Add basic processing info
+      dec: Move VPU lock so that it's not held during callback
+      tools: Simplify enc and dec and use stdin/out
+      tools: More control file clean up
+      tools: Clean up reading params from ctl file
+      tools: Make enc a lot simpler
+      enc: Added encode 1 frame api
+      enc: Remove set width/height api
+      enc: Remove run multiple api
+      enc: Remove get size of y/c planes
+      enc: Support buffer specific data for used input buffers
+      tools: Remove some of the junk from the encoder control files
+      tools: Add basic processing info
+      dec: Move VPU lock so that it's not held during callback
+      tools: Simplify enc and dec and use stdin/out
+      tools: More control file clean up
+      tools: Clean up reading params from ctl file
+      tools: Make enc a lot simpler
+      enc: Added encode 1 frame api
+      enc: Remove set width/height api
+      enc: Remove run multiple api
+      enc: Remove get size of y/c planes
+
+ configure.ac                        |    6 +-
+ data/KMp4-v4l2-stream.ctl           |   17 +-
+ data/KMp4-v4l2.ctl                  |   17 +-
+ data/KMp4_000.ctl                   |   17 +-
+ data/k264-v4l2-720p-nrc-stream.ctl  |   17 +-
+ data/k264-v4l2-720p-stream.ctl      |   17 +-
+ data/k264-v4l2-cif-stream.ctl       |   19 +-
+ data/k264-v4l2-d1-stream.ctl        |   17 +-
+ data/k264-v4l2-stream.ctl           |   17 +-
+ data/k264-v4l2-vga-stream.ctl       |   17 +-
+ data/k264-v4l2.ctl                  |   17 +-
+ data/k264_000.ctl                   |   19 +-
+ doc/shcodecs-dec.1                  |   28 +-
+ doc/shcodecs-enc.1                  |    8 +-
+ include/shcodecs/shcodecs_decoder.h |   14 -
+ include/shcodecs/shcodecs_encoder.h |  125 +--
+ src/libshcodecs/Version_script.in   |   17 +-
+ src/libshcodecs/decoder_private.h   |    3 +-
+ src/libshcodecs/encoder_private.h   |   21 +-
+ src/libshcodecs/h264_encode.c       |  208 ++--
+ src/libshcodecs/mpeg4_encode.c      |  207 ++--
+ src/libshcodecs/shcodecs_decoder.c  |   21 +-
+ src/libshcodecs/shcodecs_encoder.c  |  272 +---
+ src/tools/ControlFileUtil.c         | 2641 ++++-------------------------------
+ src/tools/ControlFileUtil.h         |    3 +
+ src/tools/Makefile.am               |    5 +-
+ src/tools/avcbeinputuser.c          |   86 +-
+ src/tools/avcbencsmp.h              |   12 +-
+ src/tools/capture.c                 |  172 +--
+ src/tools/capture.h                 |   13 -
+ src/tools/display.c                 |  110 +-
+ src/tools/display.h                 |   26 +-
+ src/tools/shcodecs-dec.c            |  295 +----
+ src/tools/shcodecs-enc.c            |  190 +--
+ src/tools/shcodecs-encdec.c         |   56 +-
+ src/tools/shcodecs-play.c           |   24 +-
+ src/tools/shcodecs-record.c         |  259 ++--
+ 37 files changed, 1023 insertions(+), 3990 deletions(-)
+
+[0]: http://www.renesas.com/fmwk.jsp?cnt=sh_mobile_family_landing.jsp&fp=/products/mpumcu/sh_mobile/
+
