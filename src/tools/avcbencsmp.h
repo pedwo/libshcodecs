@@ -47,16 +47,14 @@ typedef struct {
 
 //#define ALIGN(a, w) (void *)(((unsigned long)(a) + (w) - 1) & ~((w) - 1))
 
+int read_1frame_YCbCr420sp(FILE *fh, int w, int h, unsigned char *pY, unsigned char *pC);
 
 int open_input_image_file(APPLI_INFO * appli_info);
+void close_input_file(APPLI_INFO * appli_info);
 int load_1frame_from_image_file(SHCodecs_Encoder * encoder, APPLI_INFO * appli_info);
-void close_input_image_file(APPLI_INFO * appli_info);
 
-
-FILE *
-open_output_file(const char *fname);
-
-void close_output_file(FILE *fp);
-
+int open_output_file(APPLI_INFO * appli_info);
+void close_output_file(APPLI_INFO * appli_info);
+int write_output_file(APPLI_INFO * appli_info, unsigned char *data, int length);
 
 #endif				/* AVCBENCSMP */

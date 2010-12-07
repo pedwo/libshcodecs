@@ -2,7 +2,7 @@
 # Export file for libshcodecs
 #
 # Only the symbols listed in the global section will be callable from
-# applications linking to libuiomux.
+# applications linking to libshcodecs.
 #
 
 @PACKAGE@.so.0.0
@@ -15,26 +15,20 @@
 		shcodecs_decoder_finalize;
 		shcodecs_decoder_set_frame_by_frame;
 		shcodecs_decoder_get_frame_count;
-		shcodecs_decoder_set_use_physical;
-		shcodecs_decoder_get_physical_buf;
 
 		shcodecs_encoder_init;
 		shcodecs_encoder_close;
 		shcodecs_encoder_set_input_callback;
 		shcodecs_encoder_set_input_release_callback;
+		shcodecs_encoder_get_input_user_data;
+		shcodecs_encoder_get_min_input_frames;
 		shcodecs_encoder_set_output_callback;
-		shcodecs_encoder_get_input_physical_addr;
-		shcodecs_encoder_set_input_physical_addr;
-		shcodecs_encoder_input_provide;
-		shcodecs_encoder_get_y_bytes;
-		shcodecs_encoder_get_c_bytes;
 		shcodecs_encoder_run;
-		shcodecs_encoder_run_multiple;
+		shcodecs_encoder_input_provide;
+		shcodecs_encoder_encode_1frame;
+		shcodecs_encoder_finish;
 		shcodecs_encoder_get_width;
-		shcodecs_encoder_set_width;
 		shcodecs_encoder_get_height;
-		shcodecs_encoder_set_height;
-		shcodecs_encoder_set_allocate_input_buffers;
 
 		shcodecs_encoder_get_frame_num_delta;
 		shcodecs_encoder_get_frame_number_to_encode;

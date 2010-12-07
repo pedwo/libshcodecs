@@ -267,6 +267,13 @@ static void file_read_deinit(struct private_data *pvt)
 void *output_thread(void *data)
 {
 	struct private_data *pvt = (struct private_data*)data;
+	struct ren_vid_surface frame;
+
+	frame.format = REN_NV12;
+	frame.w = pvt->src_w;
+	frame.h = pvt->src_h;
+	frame.pitch = pvt->src_w;
+	frame.pa = NULL;
 
 	pthread_mutex_lock (&pvt->mutex);
 
@@ -277,14 +284,10 @@ void *output_thread(void *data)
 			pthread_cond_wait (&pvt->avail, &pvt->mutex);
 		}
 
-		/* Use the VEU to scale the buffer to the frame buffer */
-		display_update(pvt->display,
-				(unsigned long)pvt->p_frame_y,
-				(unsigned long)pvt->p_frame_c,
-				pvt->src_w,
-				pvt->src_h,
-				pvt->src_w,
-				V4L2_PIX_FMT_NV12);
+		frame.py = pvt->p_frame_y;
+		frame.pc = pvt->p_frame_c;
+
+		display_update(pvt->display, &frame);
 
 		/* Signal that we are ready for the next frame */
 		pvt->busy = 0;
@@ -533,10 +536,8 @@ int main(int argc, char **argv)
 	pvt->max_nal_size = (pvt->src_w * pvt->src_h * 3) / 2; /* YCbCr420 */
 	pvt->max_nal_size /= 2; /* Apply MinCR */
 
-// TODO
 //	display_set_position(pvt->display,
 //		pvt->dst_w, pvt->dst_h, pvt->dst_p, pvt->dst_q);
-
 
 	if (stream_type == -1) {
 		ext = strrchr (video_filename, '.');
@@ -568,9 +569,8 @@ int main(int argc, char **argv)
 		exit (-9);
 	}
 
-	/* setup callback for frame decoded  & make the decode use physical addresses */
+	/* setup callback for frame decoded */
 	shcodecs_decoder_set_decoded_callback (decoder, local_vpu4_decoded, pvt);
-	shcodecs_decoder_set_use_physical (decoder, 1);
 
 	/* File read initialisation */
 	if (file_read_init(pvt, video_filename) < 0) {

@@ -108,6 +108,10 @@ shcodecs_encoder_set_input_release_callback (SHCodecs_Encoder * encoder,
                                              SHCodecs_Encoder_Input_Release release_cb,
                                              void * user_data);
 
+void *
+shcodecs_encoder_get_input_user_data(SHCodecs_Encoder *encoder);
+
+
 /**
  * Provide input data to the encoder.
  * This function MUST be called from within an SHCodecs_Encoder_Input callback,
@@ -122,43 +126,16 @@ shcodecs_encoder_set_input_release_callback (SHCodecs_Encoder * encoder,
  */
 int
 shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder, 
-                                unsigned char * y_input, unsigned char * c_input);
+                                void *y_input, void *c_input);
 
-
-/**
- * Get the user space pointer to the next input buffer.
- * The byte sizes of these planes do not vary unless the image dimensions vary,
- * and can be retrieved with shcodecs_encoder_get_y_bytes() and
- * shcodecs_encoder_get_c_bytes().
- * \param encoder The SHCodecs_Encoder* handle
- * \param y_input Location to store address of luma
- * \param c_input Location to store address of chroma
- * \retval 0 Success
- */
-int
-shcodecs_encoder_get_input_buf (SHCodecs_Encoder *encoder, 
-                                unsigned char **y_input, unsigned char **c_input);
-
-/**
- * Get the size in bytes of a Y plane of input data.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns size in bytes of Y plane.
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_get_y_bytes (SHCodecs_Encoder * encoder);
-
-/**
- * Get the size in bytes of a CbCr plane of input data.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns size in bytes of CbCr plane.
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_get_c_bytes (SHCodecs_Encoder * encoder);
 
 /**
  * Run the encoder.
+ * The encoder will then perform callbacks to get input frames (where the user
+ * specifies the next frame details) and then 1 or more callbacks to output
+ * encoded data. It also makes callbacks to release the input frames once they
+ * can be used for new data.
+ * If you use this function, you cannot use shcodecs_encoder_encode_1frame
  * \param encoder The SHCodecs_Encoder* handle
  * \retval 0 Success
  */
@@ -166,13 +143,28 @@ int
 shcodecs_encoder_run (SHCodecs_Encoder * encoder);
 
 /**
- * Run multiple encoders.
- * \param encoders An array of  SHCodecs_Encoder* handles.
- * \param nr_encoders The number of elements in the \a encoders array.
+ * Encode one frame.
+ * The encoder will then perform 1 or more callbacks to output encoded data.
+ * It also makes callbacks to release the input frames once they can be used
+ * for new data.
+ * If you use this function, you cannot use shcodecs_encoder_run
+ * \param encoder The SHCodecs_Encoder* handle
+ * \param y_input Pointer to the Y plane of input data
+ * \param c_input Pointer to the CbCr plane of input data
+ * \param user_data User data that is available during the input release callback
  * \retval 0 Success
  */
 int
-shcodecs_encoder_run_multiple (SHCodecs_Encoder * encoders[], int nr_encoders);
+shcodecs_encoder_encode_1frame(SHCodecs_Encoder * encoder,
+	void *y_input, void *c_input, void *user_data);
+
+/**
+ * Finish encoding.
+ * \param encoder The SHCodecs_Encoder* handle
+ * \retval 0 Success
+ */
+int
+shcodecs_encoder_finish(SHCodecs_Encoder * encoder);
 
 /**
  * Get the width in pixels of the encoded image
@@ -183,54 +175,12 @@ shcodecs_encoder_run_multiple (SHCodecs_Encoder * encoders[], int nr_encoders);
 int shcodecs_encoder_get_width (SHCodecs_Encoder * encoder);
 
 /**
- * Set the width in pixels of the encoded image.
- * Note that this function can only be called during intialization,
- * ie. before the first call to shcodecs_encoder_run().
- * \param encoder The SHCodecs_Encoder* handle
- * \param width The width in pixels
- * \returns The width in pixels
- * \retval -1 \a encoder invalid
- * \retval -2 \a encoder already initialized.
- * \retval -3 \a width out of allowed range
- */
-int shcodecs_encoder_set_width (SHCodecs_Encoder * encoder, int width);
-
-/**
  * Get the height in pixels of the encoded image
  * \param encoder The SHCodecs_Encoder* handle
  * \returns The height in pixels
  * \retval -1 \a encoder invalid
  */
 int shcodecs_encoder_get_height (SHCodecs_Encoder * encoder);
-
-/**
- * Set the height in pixels of the encoded image.
- * Note that this function can only be called during intialization,
- * ie. before the first call to shcodecs_encoder_run().
- * \param encoder The SHCodecs_Encoder* handle
- * \param height The height in pixels
- * \returns The height in pixels
- * \retval -1 \a encoder invalid
- * \retval -2 \a encoder already initialized.
- * \retval -3 \a height out of allowed range
- */
-int shcodecs_encoder_set_height (SHCodecs_Encoder * encoder, int height);
-
-/**
- * Set input buffer allocation policy.
- * Note that this function can only be called during intialization,
- * ie. before the first call to shcodecs_encoder_run().
- * \param encoder The SHCodecs_Encoder* handle
- * \param allocate If 1, libshcodecs will allocate encode input buffers,
- *              and free them on shcodecs_encoder_close(). This is the
- *              default behavior.
- *              If 0, the application is expected to provide input buffers,
- *              by calling shcodecs_encoder_set_input_physical_addr().
- * \retval 0 Success
- * \retval -1 \a encoder invalid
- * \retval -2 \a encoder already initialized.
- */
-int shcodecs_encoder_set_allocate_input_buffers (SHCodecs_Encoder * encoder, int allocate);
 
 /**
  * Get the number of input frames elapsed since the last output callback.
@@ -244,29 +194,16 @@ int
 shcodecs_encoder_get_frame_num_delta(SHCodecs_Encoder *encoder);
 
 /**
- * Get the physical address of input data.
- * This function MUST be called from within an SHCodecs_Encoder_Input callback.
+ * Get the minimum number of input frames required.
+ * Since the encoder may encoder frames out of order due to BVOPs, it may not
+ * release an input buffer immediately. Therefore, you may need to use several
+ * input frames.
  * \param encoder The SHCodecs_Encoder* handle
- * \param addr_y Location to store physical address of the Y plane
- * \param addr_C Location to store physical address of the CbCr plane
- * \retval 0 Success
+ * \retval The minimum number of input frames required
  * \retval -1 \a encoder invalid
  */
 int
-shcodecs_encoder_get_input_physical_addr (SHCodecs_Encoder * encoder, 
-                                          unsigned int *addr_y, unsigned int *addr_C);
-
-/**
- * Set the physical address of input data.
- * This function must ONLY be called from within an SHCodecs_Encoder_Input callback.
- * \param encoder The SHCodecs_Encoder* handle
- * \param addr_y Pointer to the Y plane of input data
- * \param addr_C Pointer to the CbCr plane of input data
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_set_input_physical_addr (SHCodecs_Encoder * encoder, 
-                                          unsigned int *addr_y, unsigned int *addr_C);
+shcodecs_encoder_get_min_input_frames(SHCodecs_Encoder *encoder);
 
 #include <shcodecs/encode_general.h>
 #include <shcodecs/encode_properties.h>

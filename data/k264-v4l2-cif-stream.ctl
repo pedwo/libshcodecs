@@ -2,30 +2,17 @@
 /* checklist version = ctrlfile_h264_20060324 */
 /* 2006/03/24 18:33 */
 
-appli_id                                           = K264_DEF;
-ctrl_file_version                                  = 2;
-calc_PSNR                                          = 0;
-out_local_decode_file                              = 0;
-out_param_log_file                                 = 0;
 yuv_CbCr_format                                    = 1;
-in_yuv_CbCr_format                                 = 2;
-out_yuv_CbCr_format                                = 1;
-out_test_log_file                                  = 1;
 frame_number_to_encode                             = -1;
 input_yuv_path                                     = /dev;
 input_yuv_file                                     = video0;
 output_directry                                    = .;
 output_stream_file                                 = -;
-log_file                                           = K264_000.log;
-local_decode_file                                  = K264_000.ldf;
-test_log_file                                      = K264_000.csv;
-ref_frame_num                                      = 1;
 
-/* ----------------------- */
-/* avcbe_encoding_property */
-/* ----------------------- */
+/* H264 */
 stream_type                                        = 2;
-bitrate                                            = 4000000;
+ref_frame_num                                      = 1;
+bitrate                                            = 1000000;
 x_pic_size                                         = 352;
 y_pic_size                                         = 288;
 frame_rate                                         = 300;

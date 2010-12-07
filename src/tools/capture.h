@@ -36,19 +36,6 @@ capture *capture_open_userio(const char *device_name, int width, int height, UIO
 
 void capture_close(capture * cap);
 
-/**
- * Set the data output mode to use physical addresses.
- * If the calling application is interfacing to other IP blocks such as
- * the VEU, then set this function. Otherwise, captured frame output will
- * be mapped to userspace addresses, usable by normal applications.
- * \param cap The capture handle
- * \param use_physical Flag: Physical addresses will be reported for
- * output frame data if set to a non-zero value.
- * \retval 0 Success
- */
-int
-capture_set_use_physical(capture * cap, int use_physical);
-
 void capture_start_capturing(capture * cap);
 
 void capture_stop_capturing(capture * cap);

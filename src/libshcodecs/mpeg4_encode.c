@@ -154,7 +154,7 @@ mpeg4_encode_init_other_options (SHCodecs_Encoder *enc)
 /*---------------------------------------------------------------------*/
 
 int
-mpeg4_encode_init (SHCodecs_Encoder *enc, long stream_type)
+mpeg4_encode_init (SHCodecs_Encoder *enc)
 {
 	long rc;
 
@@ -163,7 +163,7 @@ mpeg4_encode_init (SHCodecs_Encoder *enc, long stream_type)
 	mpeg4_encode_init_other_options(enc);
 
 	/* Set default values for the parameters */
-	rc = avcbe_set_default_param(stream_type, AVCBE_RATE_NO_SKIP,
+	rc = avcbe_set_default_param(enc->stream_type, AVCBE_RATE_NO_SKIP,
 				    &(enc->encoding_property),
 				    (void *)&(enc->other_options_mpeg4));
 	if (rc != 0)
@@ -173,7 +173,7 @@ mpeg4_encode_init (SHCodecs_Encoder *enc, long stream_type)
 }
 
 static int
-mpeg4_encode_deferred_init(SHCodecs_Encoder *enc, long stream_type)
+mpeg4_encode_deferred_init(SHCodecs_Encoder *enc)
 {
 	long rc;
 	unsigned long nrefframe = 1;
@@ -265,7 +265,7 @@ clip_image_data_for_H263(SHCodecs_Encoder *enc,
 
 /* Encode a whole frame for MPEG-4/H.263 */
 static long
-mpeg4_encode_frame (SHCodecs_Encoder *enc, long stream_type,
+mpeg4_encode_frame (SHCodecs_Encoder *enc,
 	unsigned char *py, unsigned char *pc)
 {
 	long unit_size;
@@ -278,7 +278,7 @@ mpeg4_encode_frame (SHCodecs_Encoder *enc, long stream_type,
 	input_buf.Y_fmemp = py;
 	input_buf.C_fmemp = pc;
 
-	if (stream_type != AVCBE_MPEG4) {
+	if (enc->stream_type != AVCBE_MPEG4) {
 		//TODO this doesn't modify any data and we don't do anything
 		// with the return value...
 		rc = clip_image_data_for_H263(enc, py, pc);
@@ -356,50 +356,45 @@ mpeg4_encode_frame (SHCodecs_Encoder *enc, long stream_type,
 	return cb_ret;
 }
 
-/* Encode process function for MPEG-4/H.263 */
+/* Release all input buffers that aren't in use */
+static int
+mpeg4_release_input_buffers(SHCodecs_Encoder *enc)
+{
+	long rc;
+	unsigned long i;
+
+#ifdef USE_BVOP
+	// TODO this is highly suspect - I guess we should be passing the middleware a list of input buffers
+	AVCBE_FRAME_CHECK frame_check_array[17];
+
+	if (enc->other_options_mpeg4.avcbe_b_vop_num > 0) {
+
+		rc = avcbe_get_buffer_check(enc->stream_info,
+					   &frame_check_array[0]);
+		if (rc < 0) {
+			return vpu_err(enc, __func__, __LINE__, rc);
+		}
+
+		for (i=0; i < (enc->other_options_mpeg4.avcbe_b_vop_num + 1); i++) {
+			if (frame_check_array[i].avcbe_status == AVCBE_UNLOCK) {
+				if (enc->release)
+					enc->release(enc, enc->addr_y_tbl[i], enc->addr_c_tbl[i], enc->release_user_data);
+			}
+		}
+	}
+#else
+	if (enc->release)
+		enc->release(enc, enc->addr_y, enc->addr_c, enc->release_user_data);
+#endif
+	return 0;
+}
+
 static long
-mpeg4_encode_picture (SHCodecs_Encoder *enc,
-		      long stream_type)
+mpeg4_encode_start (SHCodecs_Encoder *enc)
 {
 	long rc;
 	int cb_ret;
 	unsigned long i;
-#ifdef USE_BVOP
-	unsigned char *addr_y_tbl[17], *addr_c_tbl[17];
-	AVCBE_FRAME_CHECK frame_check_array[17];
-#endif
-
-	if (enc->allocate) {
-#ifdef USE_BVOP
-		for (i=0; i < (enc->other_options_mpeg4.avcbe_b_vop_num + 1); i++) {
-			addr_y_tbl[i] = enc->input_frames[i].Y_fmemp;
-			addr_c_tbl[i] = enc->input_frames[i].C_fmemp;
-		}
-
-		/* Release a single input frame when using BVOPs as we need to keep 
-		   the frames as references. All are initially available */
-		if (enc->release) {
-			enc->release (enc,
-				enc->input_frames[0].Y_fmemp,
-				enc->input_frames[0].C_fmemp,
-				enc->release_user_data);
-		}
-#else
-		/* Release all input buffers */
-		for (i=0; i < NUM_INPUT_FRAMES; i++) {
-			if (enc->release) {
-				enc->release (enc,
-					enc->input_frames[i].Y_fmemp,
-					enc->input_frames[i].C_fmemp,
-					enc->release_user_data);
-			}
-		}
-#endif
-
-		/* Fixed input buffer if client doesn't change it */
-		enc->addr_y = enc->input_frames[0].Y_fmemp;
-		enc->addr_c = enc->input_frames[0].C_fmemp;
-	}
 
 	enc->ldec = 0;		/* Index number of the image-work-field area */
 	enc->ref1 = 0;
@@ -407,6 +402,83 @@ mpeg4_encode_picture (SHCodecs_Encoder *enc,
 
 	enc->frame_counter = 0;
 	enc->frame_skip_num = 0;
+
+	enc->initialized = 3;
+
+	return 0;
+}
+
+int
+mpeg4_encode_finish (SHCodecs_Encoder *enc)
+{
+	long rc, length;
+
+	m4iph_vpu_lock(enc->vpu);
+	length = avcbe_put_end_code(enc->stream_info, &enc->end_code_buff_info, AVCBE_VOSE);
+	m4iph_vpu_unlock(enc->vpu);
+	if (length <= 0)
+		return vpu_err(enc, __func__, __LINE__, length);
+
+	rc = output_data(enc, END, enc->end_code_buff_info.buff_top, length);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
+int
+mpeg4_encode_1frame(SHCodecs_Encoder *enc, void *py, void *pc, void *user_data)
+{
+	void *phys_py = (void *)uiomux_all_virt_to_phys(py);
+	void *phys_pc = (void *)uiomux_all_virt_to_phys(pc);
+	int rc;
+
+	enc->release_user_data_buffer = user_data;
+
+	/* Can the buffers passed to us be used by the hardware? */
+	/* If not allocate buffer that we can use and copy the input */
+	if (!phys_py || !phys_pc) {
+		if (!enc->input_frame) {
+			enc->input_frame = m4iph_sdr_malloc(enc->vpu, (enc->y_bytes*3)/2, 32);
+			if (!enc->input_frame)
+				return -1;
+		}
+		phys_py = enc->input_frame;
+		phys_pc = phys_py + enc->y_bytes;
+		m4iph_vpu_lock(enc->vpu);
+		m4iph_sdr_write(phys_py, py, enc->y_bytes);
+		m4iph_sdr_write(phys_pc, pc, enc->y_bytes/2);
+		m4iph_vpu_unlock(enc->vpu);
+	}
+
+	if (enc->initialized < 3) {
+		rc = mpeg4_encode_start(enc);
+		if (rc != 0)
+			return rc;
+	}
+
+	m4iph_vpu_lock(enc->vpu);
+	rc = mpeg4_encode_frame(enc, phys_py, phys_pc);
+	m4iph_vpu_unlock(enc->vpu);
+
+	// TODO can't just release this buffer when using BVOPs...
+	if (enc->release)
+		enc->release(enc, py, pc, enc->release_user_data);
+
+	return rc;
+}
+
+int
+mpeg4_encode_run (SHCodecs_Encoder *enc)
+{
+	long rc;
+	int cb_ret;
+
+	if (enc->initialized < 3) {
+		rc = mpeg4_encode_start(enc);
+		if (rc != 0)
+			return rc;
+	}
 
 	/* For all frames to encode */
 	while (1) {
@@ -422,68 +494,21 @@ mpeg4_encode_picture (SHCodecs_Encoder *enc,
 		m4iph_vpu_lock(enc->vpu);
 
 		/* Encode the frame */
-		rc = mpeg4_encode_frame(enc, stream_type, enc->addr_y, enc->addr_c);
+		rc = mpeg4_encode_frame(enc, enc->addr_y, enc->addr_c);
 		if (rc != 0) {
 			m4iph_vpu_unlock(enc->vpu);
 			return rc;
 		}
 
-#ifdef USE_BVOP
-		/* Find an input buffer that isn't in use */
-		if (enc->other_options_mpeg4.avcbe_b_vop_num > 0) {
-
-			rc = avcbe_get_buffer_check(enc->stream_info,
-						   &frame_check_array[0]);
-			if (rc < 0) {
-				m4iph_vpu_unlock(enc->vpu);
-				return vpu_err(enc, __func__, __LINE__, rc);
-			}
-
-			for (i=0; i < (enc->other_options_mpeg4.avcbe_b_vop_num + 1); i++) {
-				if (frame_check_array[i].avcbe_status == AVCBE_UNLOCK) {
-					enc->addr_y = addr_y_tbl[i];
-					enc->addr_c = addr_c_tbl[i];
-					break;
-				}
-			}
-		}
-#endif
-
-		if (enc->release)
-			enc->release (enc, enc->addr_y, enc->addr_c, enc->release_user_data);
-
+		rc = mpeg4_release_input_buffers(enc);
 		m4iph_vpu_unlock(enc->vpu);
+		if (rc != 0)
+			return rc;
 	}
 
-	return (0);
+	rc = mpeg4_encode_finish(enc);
+
+	return rc;
 }
 
-int
-mpeg4_encode_run (SHCodecs_Encoder *enc, long stream_type)
-{
-	long rc, length;
-	int cb_ret=0;
-
-	m4iph_vpu_lock(enc->vpu);
-	if (enc->initialized < 2)
-		mpeg4_encode_deferred_init (enc, stream_type);
-	m4iph_vpu_unlock(enc->vpu);
-
-	enc->error_return_code = 0;
-
-	rc = mpeg4_encode_picture (enc, stream_type);
-	if (rc != 0)
-		return rc;
-
-	/* End encoding */
-	m4iph_vpu_lock(enc->vpu);
-	length = avcbe_put_end_code(enc->stream_info, &enc->end_code_buff_info, AVCBE_VOSE);
-	m4iph_vpu_unlock(enc->vpu);
-	if (length <= 0)
-		return vpu_err(enc, __func__, __LINE__, length);
-
-	cb_ret = output_data(enc, END, enc->end_code_buff_info.buff_top, length);
-
-	return (cb_ret);
-}
 

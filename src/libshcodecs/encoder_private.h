@@ -66,12 +66,14 @@ struct SHCodecs_Encoder {
 	int height;
 
 	SHCodecs_Format format;
+	long stream_type; /* VPU middleware stream type */
 
 	SHCodecs_Encoder_Input input;
 	void *input_user_data;
 
 	SHCodecs_Encoder_Input_Release release;
 	void *release_user_data;
+	void *release_user_data_buffer;
 
 	SHCodecs_Encoder_Output output;
 	void *output_user_data;
@@ -80,11 +82,12 @@ struct SHCodecs_Encoder {
 	long error_return_code;	/* return_value of the API function when error ocuured */
 
 	/* Internal */
-	int allocate; /* Whether or not shcodecs should allocate/free input buffers */
 	int initialized; /* Is avcbe_encode_init() done? */
 	int y_bytes; /* Bytes used by Y input plane; CbCr plane uses y_bytes/2 */
+	unsigned char * input_frame;
 	unsigned char * addr_y; /* VPU address to write next Y plane; updated by encoder backends */
 	unsigned char * addr_c; /* VPU address to write next C plane; updated by encoder backends */
+	unsigned char *addr_y_tbl[17], *addr_c_tbl[17];
 
 	avcbe_stream_info *stream_info;
 	long frm; /* Current frame */
@@ -97,7 +100,6 @@ struct SHCodecs_Encoder {
 
 	/* Working values */
 	TAVCBE_FMEM local_frames[NUM_LDEC_FRAMES];
-	TAVCBE_FMEM input_frames[NUM_INPUT_FRAMES];
 	TAVCBE_WORKAREA work_area;
 	TAVCBE_WORKAREA backup_area;
 
@@ -138,13 +140,16 @@ struct SHCodecs_Encoder {
 
 /* Internal prototypes of functions using SHCodecs_Encoder */
 
-int h264_encode_init  (SHCodecs_Encoder * encoder, long stream_type);
+int h264_encode_init  (SHCodecs_Encoder * encoder);
 void h264_encode_close(SHCodecs_Encoder *encoder);
-int h264_encode_run (SHCodecs_Encoder * encoder, long stream_type);
-int h264_encode_run_multiple (SHCodecs_Encoder *encs[], int nr_encoders, long stream_type);
+int h264_encode_1frame(SHCodecs_Encoder *enc, void *py, void *pc, void *user_data);
+int h264_encode_finish (SHCodecs_Encoder *enc);
+int h264_encode_run (SHCodecs_Encoder * encoder);
 
-int mpeg4_encode_init (SHCodecs_Encoder * encoder, long stream_type);
-int mpeg4_encode_run (SHCodecs_Encoder * encoder, long stream_type);
+int mpeg4_encode_init (SHCodecs_Encoder * encoder);
+int mpeg4_encode_1frame(SHCodecs_Encoder *enc, void *py, void *pc, void *user_data);
+int mpeg4_encode_finish (SHCodecs_Encoder *enc);
+int mpeg4_encode_run (SHCodecs_Encoder * encoder);
 
 #endif				/* __ENCODER_PRIVATE_H__ */
 

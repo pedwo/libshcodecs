@@ -29,18 +29,35 @@
 
 #include "avcbencsmp.h"
 
-#include "capture.h"
-
-#include <shveu/shveu.h>
-#include <shveu/veu_colorspace.h>
 #include <shcodecs/shcodecs_encoder.h>
+
+/* Read 1 frame of YCbCr420 semi-planar data */
+int read_1frame_YCbCr420sp(FILE *fh, int w, int h, unsigned char *pY, unsigned char *pC)
+{
+	int read;
+
+	/* Luma */	
+	read = fread(pY, 1, w * h, fh);
+	if (read < (w * h))
+		return 1;
+
+	/* Packed chroma */	
+	read = fread(pC, 1, w * h / 2, fh);
+	if (read < ( w * h / 2))
+		return 1;
+
+	return 0;
+}
 
 int open_input_image_file(APPLI_INFO * appli_info)
 {
 	appli_info->frame_counter_of_input = 0;
-	appli_info->input_yuv_fp = NULL;
-	appli_info->input_yuv_fp =
-	    fopen(appli_info->input_file_name_buf, "rb");
+
+	if (!strcmp (appli_info->input_file_name_buf, "-"))
+		appli_info->input_yuv_fp = stdin;
+	else
+		appli_info->input_yuv_fp = fopen(appli_info->input_file_name_buf, "rb");
+
 
 	if (appli_info->input_yuv_fp == NULL) {
 		fprintf(stderr, "ERROR: can't open file %s \n",
@@ -49,6 +66,14 @@ int open_input_image_file(APPLI_INFO * appli_info)
 	}
 
 	return (0);
+}
+
+void close_input_file(APPLI_INFO * appli_info)
+{
+	FILE *fp = appli_info->input_yuv_fp;
+
+	if (fp != NULL)
+		fclose(fp);
 }
 
 /* copy yuv data to the image-capture-field area each frame */
@@ -137,13 +162,8 @@ int load_1frame_from_image_file(SHCodecs_Encoder * encoder,
 	}
 
 	/* Write image data to kernel memory for VPU */
-        shcodecs_encoder_input_provide (encoder, w_addr_yuv, CbCr_ptr);
-#if 0
-	m4iph_sdr_write((unsigned char *) addr_y,
-			(unsigned char *) w_addr_yuv, wnum);
-	m4iph_sdr_write((unsigned char *) addr_c,
-			(unsigned char *) CbCr_ptr, wnum / 2);
-#endif
+	shcodecs_encoder_encode_1frame(encoder, w_addr_yuv, CbCr_ptr, NULL);
+
 	free(w_addr_yuv);
 	free(Cb_buf_ptr);
 	free(Cr_buf_ptr);
@@ -152,35 +172,43 @@ int load_1frame_from_image_file(SHCodecs_Encoder * encoder,
 	return (0);
 }
 
-/* close input YUV data file */
-void close_input_image_file(APPLI_INFO * appli_info)
-{
-	if (appli_info->input_yuv_fp != NULL) {
-		fclose(appli_info->input_yuv_fp);
-		appli_info->input_yuv_fp = NULL;
-	}
-}
 
-
-FILE *
-open_output_file(const char *fname)
+int open_output_file(APPLI_INFO * appli_info)
 {
-	FILE *fp = NULL;
+	const char *fname = appli_info->output_file_name_buf;
+	FILE *fp;
 
 	if (!strcmp (fname, "-"))
 		fp = stdout;
 	else
 		fp = fopen(fname, "wb");
 
-	return fp;
+	appli_info->output_file_fp = fp;
+
+	if (fp == NULL) {
+		perror("Error opening output file\n");
+		return -1;
+	}
+
+	return 0;
 }
 
-/* close output file */
-void close_output_file(FILE *fp)
+void close_output_file(APPLI_INFO * appli_info)
 {
+	FILE *fp = appli_info->output_file_fp;
+
 	if (fp != NULL) {
 		fflush(fp);
 		fclose(fp);
+	}
+}
+
+int write_output_file(APPLI_INFO * appli_info, unsigned char *data, int length)
+{
+	if (fwrite(data, 1, length, appli_info->output_file_fp) == (size_t)length) {
+		return 0;
+	} else {
+		return -1;
 	}
 }
 

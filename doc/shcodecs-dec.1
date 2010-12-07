@@ -1,25 +1,18 @@
-.TH "shcodecs-dec" 1 "May 2009" "SH Codecs" "Linux-SH Multimedia"
+.TH "shcodecs-dec" 1 "Oct 2010" "SH Codecs" "Linux-SH Multimedia"
 
 .SH NAME
-shcodecs-dec \- Decode a video file using the SH-Mobile VPU
+shcodecs-dec \- Decode a video Elementary Stream using the SH-Mobile VPU
 
 .SH SYNOPSIS
 
 .B \fBshcodecs-dec\fR [\-w \fBwidth\fR | \-\-width \fBwidth\fR ] [\-h \fBheight\fR | \-\-height \fBheight\fR ] [\-s \fBsize\fR | \-\-size
-\fBsize\fR ] [\-f \fBformat\fR | \-\-format \fBformat\fR ] [\-i \fBfilename\fR | \-\-input \fBfilename\fR ] [\-o \fBfilename\fR | \-\-output \fBfilename\fR ]
+\fBsize\fR ] [\-f \fBformat\fR | \-\-format \fBformat\fR ]
 .PP
 \fBshcodecs-dec\fR [\-\-help ]  [\-v  | \-\-version ]
 
 .SH OPTIONS
 .PP
 \fBshcodecs-dec\fR accepts the following options:
-
-.SS "File options"
-.IP "\-i \fBfilename\fR, \-\-input \fBfilename\fR" 10
-Set the input filename.
-
-.IP "\-o \fBfilename\fR, \-\-output \fBfilename\fR" 10
-Set the output filename.
 
 .SS "Encoding format"
 .IP "\-f \fBformat\fR, \-\-format \fBformat\fR" 10
@@ -43,19 +36,10 @@ Output version information and exit.
 
 .SH DESCRIPTION
 .B shcodecs-dec
-Decode an input file using the SH-Mobile VPU.
+Decode an Elementary Stream using the SH-Mobile VPU.
+Decode an H.264 or MPEG-4 Elementary Stream to YCbCr 4:2:0 raw image data using the SH-Mobile VPU.
+Input on stdin, output on stdout.
 
-.SH BENCHMARKING
-The decoded output is discarded if no output filename is
-specified; this can be useful for benchmarking. Alternatively,
-specify /dev/null as the output filename.
-
-.SH "File extensions"
-File extensions are interpreted as follows unless otherwise specified:
-.IP ".m4v" 10
-MPEG4
-.IP ".264" 10
-H.264
 
 .SH AUTHORS
 

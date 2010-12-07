@@ -185,29 +185,6 @@ shcodecs_decoder_set_frame_by_frame (SHCodecs_Decoder * decoder, int frame_by_fr
 }
 
 int
-shcodecs_decoder_set_use_physical (SHCodecs_Decoder * decoder, int use_physical)
-{
-	if (!decoder) return -1;
-
-	decoder->use_physical = use_physical;
-
-	return 0;
-}
-
-int
-shcodecs_decoder_get_physical_buf (SHCodecs_Decoder * decoder,
-                                   unsigned long *phys_y,
-                                   unsigned long *phys_c)
-{
-	if (!decoder) return -1;
-
-	*phys_y = decoder->frame_addr_y;
-	*phys_c = decoder->frame_addr_c;
-
-	return 0;
-}
-
-int
 shcodecs_decoder_set_decoded_callback(SHCodecs_Decoder * decoder,
 				      SHCodecs_Decoded_Callback decoded_cb,
 				      void *user_data)
@@ -647,17 +624,9 @@ static int extract_frame(SHCodecs_Decoder * decoder, long frame_index)
 
 	debug_printf("%s: output frame %d, frame_index=%d\n", __func__, decoder->frame_count, frame_index);
 
-	decoder->frame_addr_y = frame->Y_fmemp;
-	decoder->frame_addr_c = frame->Y_fmemp + size_of_Y;
-
 	/* Call user's output callback */
 	if (decoder->decoded_cb) {
-		if (decoder->use_physical) {
-			yf = frame->Y_fmemp;
-		} else {
-			yf = m4iph_addr_to_virt(decoder->vpu, frame->Y_fmemp);
-		}
-
+		yf = m4iph_addr_to_virt(decoder->vpu, frame->Y_fmemp);
 		cf = yf + size_of_Y;
 
 		cb_ret = decoder->decoded_cb(decoder,
