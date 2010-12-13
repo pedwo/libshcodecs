@@ -404,6 +404,7 @@ shcodecs_encoder_get_min_input_frames(SHCodecs_Encoder *encoder)
 	if (encoder->format == SHCodecs_Format_H264) {
 		return 1;
 	} else {
-		return encoder->other_options_mpeg4.avcbe_b_vop_num;
+		// TODO BVOPs will need several frames
+		return 1;
 	}
 }

@@ -38,8 +38,8 @@
 
 #define OUTPUT_ERROR_MSGS
 
-#define USE_BVOP
-
+/* BVOPs currently unsupported */
+/* #define USE_BVOP */
 
 #ifdef OUTPUT_ERROR_MSGS
 #define MSG_LEN 127
@@ -396,6 +396,12 @@ mpeg4_encode_start (SHCodecs_Encoder *enc)
 	int cb_ret;
 	unsigned long i;
 
+	if (enc->initialized < 2) {
+		rc = mpeg4_encode_deferred_init(enc);
+		if (rc != 0)
+			return rc;
+	}
+
 	enc->ldec = 0;		/* Index number of the image-work-field area */
 	enc->ref1 = 0;
 	enc->frm = 0;		/* Frame number to be encoded */
@@ -491,17 +497,8 @@ mpeg4_encode_run (SHCodecs_Encoder *enc)
 			}
 		}
 
-		m4iph_vpu_lock(enc->vpu);
-
 		/* Encode the frame */
-		rc = mpeg4_encode_frame(enc, enc->addr_y, enc->addr_c);
-		if (rc != 0) {
-			m4iph_vpu_unlock(enc->vpu);
-			return rc;
-		}
-
-		rc = mpeg4_release_input_buffers(enc);
-		m4iph_vpu_unlock(enc->vpu);
+		rc = mpeg4_encode_1frame(enc, enc->addr_y, enc->addr_c, NULL);
 		if (rc != 0)
 			return rc;
 	}
