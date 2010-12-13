@@ -145,7 +145,6 @@ h264_encode_init (SHCodecs_Encoder *enc)
 				    (void *)&(enc->other_options_h264));
 	enc->actual_bitrate = enc->encoding_property.avcbe_bitrate;
 	enc->actual_fps_x10 = enc->encoding_property.avcbe_frame_rate;
-	enc->actual_frame_res = enc->encoding_property.avcbe_frame_num_resolution;
 	m4iph_vpu_unlock(enc->vpu);
 	if (rc != 0)
 		return vpu_err(enc, __func__, __LINE__, rc);
@@ -168,7 +167,6 @@ h264_encode_deferred_init(SHCodecs_Encoder *enc)
 
 	enc->encoding_property.avcbe_bitrate = enc->actual_bitrate;
 	enc->encoding_property.avcbe_frame_rate = enc->actual_fps_x10;
-	enc->encoding_property.avcbe_frame_num_resolution = enc->actual_frame_res;
 
 	/* Handle framerates > 30fps */
 	if (enc->actual_fps_x10 > 300) {
@@ -176,9 +174,9 @@ h264_encode_deferred_init(SHCodecs_Encoder *enc)
 		   bitrate accordingly */
 		enc->encoding_property.avcbe_frame_rate = 300;
 		enc->encoding_property.avcbe_bitrate = enc->actual_bitrate * enc->actual_fps_x10 / 300;
-		/* Assume frame rate is same as frame number resolution */
-		enc->encoding_property.avcbe_frame_num_resolution = 30;
 	}
+	/* Assume frame rate is same as frame number resolution */
+	enc->encoding_property.avcbe_frame_num_resolution = enc->encoding_property.avcbe_frame_rate / 10;
 
 	if (options->avcbe_ratecontrol_cpb_buffer_mode == AVCBE_MANUAL) {
 		options->avcbe_ratecontrol_cpb_offset = (unsigned long)

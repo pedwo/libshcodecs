@@ -29,7 +29,6 @@ rate_ctrl_intra_thr_changeable                     = 0;
 control_bitrate_length                             = 0;
 intra_macroblock_refresh_cycle                     = 0;
 video_format                                       = 2;
-frame_num_resolution                               = 30;
 noise_reduction                                    = 0;
 reaction_param_coeff                               = 10;
 weightedQ_mode                                     = 0;

@@ -166,9 +166,6 @@
 #endif
 	}
 	/* end of 'if (stream_type == AVCBE_H264)' */
-	shcodecs_encoder_set_frame_no_increment(encoder,
-	    encoder->encoding_property.avcbe_frame_num_resolution /
-	    (encoder->encoding_property.avcbe_frame_rate / 10));
 
 
 #if 0

@@ -362,25 +362,6 @@ shcodecs_encoder_set_video_format(SHCodecs_Encoder * encoder,
 				  long video_format);
 
 /**
- * Get the frame_num_resolution.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns The frame_num_resolution
- * \retval -1 \a encoder invalid
- */
-long shcodecs_encoder_get_frame_num_resolution(SHCodecs_Encoder * encoder);
-
-/**
- * Set the frame_num_resolution.
- * \param encoder The SHCodecs_Encoder* handle
- * \param frame_num_resolution The new value for \a frame_num_resolution
- * \returns The previous value of \a frame_num_resolution
- * \retval -1 \a encoder invalid
- */
-long
-shcodecs_encoder_set_frame_num_resolution(SHCodecs_Encoder * encoder,
-					  long frame_num_resolution);
-
-/**
  * Get the noise_reduction.
  * \param encoder The SHCodecs_Encoder* handle
  * \returns The noise_reduction

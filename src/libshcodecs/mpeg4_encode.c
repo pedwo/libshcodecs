@@ -168,7 +168,6 @@ mpeg4_encode_init (SHCodecs_Encoder *enc)
 				    (void *)&(enc->other_options_mpeg4));
 	enc->actual_bitrate = enc->encoding_property.avcbe_bitrate;
 	enc->actual_fps_x10 = enc->encoding_property.avcbe_frame_rate;
-	enc->actual_frame_res = enc->encoding_property.avcbe_frame_num_resolution;
 	if (rc != 0)
 		return vpu_err(enc, __func__, __LINE__, rc);
 
@@ -183,7 +182,6 @@ mpeg4_encode_deferred_init(SHCodecs_Encoder *enc)
 
 	enc->encoding_property.avcbe_bitrate = enc->actual_bitrate;
 	enc->encoding_property.avcbe_frame_rate = enc->actual_fps_x10;
-	enc->encoding_property.avcbe_frame_num_resolution = enc->actual_frame_res;
 
 	/* Handle framerates > 30fps */
 	if (enc->actual_fps_x10 > 300) {
@@ -191,9 +189,9 @@ mpeg4_encode_deferred_init(SHCodecs_Encoder *enc)
 		   bitrate accordingly */
 		enc->encoding_property.avcbe_frame_rate = 300;
 		enc->encoding_property.avcbe_bitrate = enc->actual_bitrate * enc->actual_fps_x10 / 300;
-		/* Assume frame rate is same as frame number resolution */
-		enc->encoding_property.avcbe_frame_num_resolution = 30;
 	}
+	/* Assume frame rate is same as frame number resolution */
+	enc->encoding_property.avcbe_frame_num_resolution = enc->encoding_property.avcbe_frame_rate / 10;
 
 	/* Initialize VPU parameters & local frame memory */
 	rc = avcbe_init_encode(&(enc->encoding_property),

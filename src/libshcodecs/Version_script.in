@@ -31,8 +31,6 @@
 		shcodecs_encoder_get_height;
 
 		shcodecs_encoder_get_frame_num_delta;
-		shcodecs_encoder_get_frame_number_to_encode;
-		shcodecs_encoder_set_frame_number_to_encode;
 		shcodecs_encoder_get_frame_no_increment;
 		shcodecs_encoder_set_frame_no_increment;
 
@@ -250,8 +248,6 @@
 		shcodecs_encoder_set_intra_macroblock_refresh_cycle;
 		shcodecs_encoder_get_video_format;
 		shcodecs_encoder_set_video_format;
-		shcodecs_encoder_get_frame_num_resolution;
-		shcodecs_encoder_set_frame_num_resolution;
 		shcodecs_encoder_get_noise_reduction;
 		shcodecs_encoder_set_noise_reduction;
 		shcodecs_encoder_get_reaction_param_coeff;

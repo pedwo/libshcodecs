@@ -145,7 +145,6 @@ static const struct enc_options_t options[] = {
 	{ "control_bitrate_length", &shcodecs_encoder_set_control_bitrate_length },
 	{ "intra_macroblock_refresh_cycle", &shcodecs_encoder_set_intra_macroblock_refresh_cycle },
 	{ "video_format", &shcodecs_encoder_set_video_format },
-	{ "frame_num_resolution", &shcodecs_encoder_set_frame_num_resolution },
 	{ "noise_reduction", &shcodecs_encoder_set_noise_reduction },
 	{ "reaction_param_coeff", &shcodecs_encoder_set_reaction_param_coeff },
 	{ "weightedQ_mode", &shcodecs_encoder_set_weightedQ_mode },
@@ -368,11 +367,6 @@ int ctrlfile_set_enc_param(SHCodecs_Encoder * encoder, const char *ctrl_file)
 		SetUnsignedPropsFromFile(fp_in, encoder, mpeg4_options,
 				sizeof(mpeg4_options) / sizeof(struct enc_uoptions_t));
 	}
-
-	shcodecs_encoder_set_frame_no_increment(encoder, 1);
-	shcodecs_encoder_set_frame_no_increment(encoder,
-	    shcodecs_encoder_get_frame_num_resolution(encoder) /
-	    (shcodecs_encoder_get_frame_rate(encoder) / 10));
 
 	fclose(fp_in);
 
