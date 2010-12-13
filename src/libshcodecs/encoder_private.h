@@ -110,6 +110,9 @@ struct SHCodecs_Encoder {
 	long frame_no_increment;	/* Increment value of Frame number to be encoded for 
 					   m4vse_encode_picture function */
 	/* encoding parameters */
+	int actual_fps_x10;	  /* The actual frames per second x10 (i.e. 300=30fps) */
+	int actual_bitrate;	  /* The actual target bit rate, bits/s */
+	int actual_frame_res; /* The actual frame number resolution (fps) */
 	avcbe_encoding_property encoding_property;
 	avcbe_encoding_property paramR;	/* for stream-1 */
 	OTHER_API_ENC_PARAM other_API_enc_param;
