@@ -73,7 +73,7 @@ long shcodecs_encoder_get_bitrate(SHCodecs_Encoder * encoder)
 	if (encoder == NULL)
 		return -1;
 
-	return encoder->encoding_property.avcbe_bitrate;
+	return encoder->actual_bitrate;
 }
 
 /**
@@ -90,8 +90,8 @@ long shcodecs_encoder_set_bitrate(SHCodecs_Encoder * encoder, long bitrate)
 	if (encoder == NULL)
 		return -1;
 
-	old_value = encoder->encoding_property.avcbe_bitrate;
-	encoder->encoding_property.avcbe_bitrate = bitrate;
+	old_value = encoder->actual_bitrate;
+	encoder->actual_bitrate = bitrate;
 
 	return old_value;
 }
@@ -177,7 +177,7 @@ long shcodecs_encoder_get_frame_rate(SHCodecs_Encoder * encoder)
 	if (encoder == NULL)
 		return -1;
 
-	return encoder->encoding_property.avcbe_frame_rate;
+	return encoder->actual_fps_x10;
 }
 
 /**
@@ -196,10 +196,8 @@ shcodecs_encoder_set_frame_rate(SHCodecs_Encoder * encoder,
 	if (encoder == NULL)
 		return -1;
 
-	old_value = encoder->encoding_property.avcbe_frame_rate;
-	encoder->encoding_property.avcbe_frame_rate = frame_rate;
-
-	shcodecs_encoder_set_h264_sps_frame_rate_info(encoder, frame_rate, 10);
+	old_value = encoder->actual_fps_x10;
+	encoder->actual_fps_x10 = frame_rate;
 
 	return old_value;
 }
@@ -727,7 +725,7 @@ long shcodecs_encoder_get_frame_num_resolution(SHCodecs_Encoder * encoder)
 	if (encoder == NULL)
 		return -1;
 
-	return encoder->encoding_property.avcbe_frame_num_resolution;
+	return encoder->actual_frame_res;
 }
 
 /**
@@ -746,9 +744,8 @@ shcodecs_encoder_set_frame_num_resolution(SHCodecs_Encoder * encoder,
 	if (encoder == NULL)
 		return -1;
 
-	old_value = encoder->encoding_property.avcbe_frame_num_resolution;
-	encoder->encoding_property.avcbe_frame_num_resolution =
-	    frame_num_resolution;
+	old_value = encoder->actual_frame_res;
+	encoder->actual_frame_res = frame_num_resolution;
 
 	return old_value;
 }
