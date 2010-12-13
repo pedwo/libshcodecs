@@ -458,7 +458,9 @@ mpeg4_encode_1frame(SHCodecs_Encoder *enc, void *py, void *pc, void *user_data)
 	}
 
 	if (enc->initialized < 3) {
+		m4iph_vpu_lock(enc->vpu);
 		rc = mpeg4_encode_start(enc);
+		m4iph_vpu_unlock(enc->vpu);
 		if (rc != 0)
 			return rc;
 	}
@@ -481,7 +483,9 @@ mpeg4_encode_run (SHCodecs_Encoder *enc)
 	int cb_ret;
 
 	if (enc->initialized < 3) {
+		m4iph_vpu_lock(enc->vpu);
 		rc = mpeg4_encode_start(enc);
+		m4iph_vpu_unlock(enc->vpu);
 		if (rc != 0)
 			return rc;
 	}
