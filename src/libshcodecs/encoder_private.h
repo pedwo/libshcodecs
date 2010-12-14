@@ -28,8 +28,7 @@
 
 #include "encoder_common.h"
 
-#define MAX_NUM_REF_FRAMES 2
-#define NUM_INPUT_FRAMES 2
+#define MAX_NUM_REF_FRAMES 1
 #define NUM_LDEC_FRAMES (MAX_NUM_REF_FRAMES+1)
 
 #define ROUND_UP_16(x) ((((x)+15) / 16) * 16)
@@ -128,7 +127,6 @@ struct SHCodecs_Encoder {
 	unsigned long filler_data_buff[FILLER_DATA_BUFF_SIZE / 4];	/* for FillerData */
 
 	avcbe_other_options_h264 other_options_h264;	/* parameters to control details */
-	unsigned char ref_frame_num;	/* »²¾È¥Õ¥ì¡¼¥à¿ô¡Ê1 or 2) (H.264¤Î¤ß¡Ë */
 	long output_filler_enable;	/* enable flag to put Filler Data for CPB Buffer Over */
 	long output_filler_data;	/* for FillerData(CPB  Buffer) */
 

@@ -7,27 +7,6 @@
  */
 
 /**
- * Get the ref_frame_num.
- * Valid for H.264 only.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns The ref_frame_num
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_get_ref_frame_num (SHCodecs_Encoder * encoder);
-
-
-/**
- * Set the ref_frame_num.
- * Valid for H.264 only.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns The previous value of \a ref_frame_num
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_set_ref_frame_num (SHCodecs_Encoder * encoder, int ref_frame_num);
-
-/**
  * Get the output_filler_enable.
  * Valid for H.264 only.
  * \param encoder The SHCodecs_Encoder* handle

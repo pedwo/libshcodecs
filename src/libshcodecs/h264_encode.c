@@ -194,8 +194,8 @@ h264_encode_deferred_init(SHCodecs_Encoder *enc)
 		return vpu_err(enc, __func__, __LINE__, rc);
 
 	rc = avcbe_init_memory(enc->stream_info,
-				enc->ref_frame_num,
-				(enc->ref_frame_num+1), enc->local_frames,
+				MAX_NUM_REF_FRAMES,
+				NUM_LDEC_FRAMES, enc->local_frames,
 				ROUND_UP_16(enc->width), ROUND_UP_16(enc->height));
 	if (rc != 0)
 		return vpu_err(enc, __func__, __LINE__, rc);

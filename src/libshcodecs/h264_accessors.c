@@ -26,44 +26,6 @@
 #include "encoder_private.h"
 
 /*
- * Get the ref_frame_num.
- * Valid for H.264 only.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns The ref_frame_num
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_get_ref_frame_num (SHCodecs_Encoder * encoder)
-{
-	if (encoder == NULL)
-		return -1;
-
-	return encoder->ref_frame_num;
-}
-
-/*
- * Set the ref_frame_num.
- * Valid for H.264 only.
- * \param encoder The SHCodecs_Encoder* handle
- * \returns The previous value of \a ref_frame_num
- * \retval -1 \a encoder invalid
- */
-int
-shcodecs_encoder_set_ref_frame_num (SHCodecs_Encoder * encoder, int ref_frame_num)
-{
-  int old_value;
-
-  if (encoder == NULL) return -1;
-
-  if (ref_frame_num > MAX_NUM_REF_FRAMES) return -1;
-
-  old_value = encoder->ref_frame_num;
-  encoder->ref_frame_num = ref_frame_num;
-
-  return old_value;
-}
-
-/*
  * Get the output_filler_enable.
  * Valid for H.264 only.
  * \param encoder The SHCodecs_Encoder* handle

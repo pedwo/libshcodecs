@@ -359,8 +359,6 @@ int ctrlfile_set_enc_param(SHCodecs_Encoder * encoder, const char *ctrl_file)
 		SetPropsFromFile(fp_in, encoder, h264_options2,
 				sizeof(h264_options2) / sizeof(struct enc_options_t));
 
-		if (GetValueFromCtrlFile(fp_in, "ref_frame_num", &value))
-			shcodecs_encoder_set_ref_frame_num (encoder, value);
 		if (GetValueFromCtrlFile(fp_in, "filler_output_on", &value))
 			shcodecs_encoder_set_output_filler_enable (encoder, value);
 	} else {
