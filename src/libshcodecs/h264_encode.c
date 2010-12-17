@@ -173,7 +173,7 @@ h264_encode_deferred_init(SHCodecs_Encoder *enc)
 		/* Use a framerate that is acceptable to the Middleware & adjust the
 		   bitrate accordingly */
 		enc->encoding_property.avcbe_frame_rate = 300;
-		enc->encoding_property.avcbe_bitrate = enc->actual_bitrate * enc->actual_fps_x10 / 300;
+		enc->encoding_property.avcbe_bitrate = enc->actual_bitrate * 300 / enc->actual_fps_x10;
 	}
 	/* Assume frame rate is same as frame number resolution */
 	enc->encoding_property.avcbe_frame_num_resolution = enc->encoding_property.avcbe_frame_rate / 10;
