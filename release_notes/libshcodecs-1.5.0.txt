@@ -1,0 +1,61 @@
+libshcodecs 1.5.0 Release
+=========================
+
+libshcodecs is a library for controlling SH-Mobile hardware codecs.
+
+The [SH-Mobile][0] processor series includes a hardware video processing
+unit that supports MPEG-4 and H.264 encoding and decoding.
+libshcodecs is available under the terms of the GNU LGPL.
+
+The source archive, and more information about the library are available from:
+
+	https://oss.renesas.com/modules/document/?libshcodecs
+
+
+New in this release
+-------------------
+
+This release allows frames per second settings >30fps. It also fixes MPEG-4
+encoding.
+
+
+Details
+-------
+
+This release includes the following changes since version 1.4.0:
+
+Phil Edworthy (7):
+      Fix bitrate setting for >30fps
+      Remove ref_frame_num property - not required
+      Remove frame_num_resolution property
+      Merge branch '60fps'
+      Fix multiple instances of MPEG encoder
+      Fix MPEG4 encoding (BVOPs not supported)
+      Support >30 fps
+
+ data/KMp4-v4l2-stream.ctl            |    1 -
+ data/KMp4-v4l2.ctl                   |    1 -
+ data/KMp4_000.ctl                    |    1 -
+ data/k264-v4l2-720p-nrc-stream.ctl   |    1 -
+ data/k264-v4l2-720p-stream.ctl       |    1 -
+ data/k264-v4l2-cif-stream.ctl        |    1 -
+ data/k264-v4l2-d1-stream.ctl         |    1 -
+ data/k264-v4l2-stream.ctl            |    1 -
+ data/k264-v4l2-vga-stream.ctl        |    1 -
+ data/k264-v4l2.ctl                   |    1 -
+ data/k264_000.ctl                    |    1 -
+ include/shcodecs/encode_h264.h       |   21 --------------
+ include/shcodecs/encode_properties.h |   19 ------------
+ src/libshcodecs/Version_script.in    |    6 ----
+ src/libshcodecs/encoder_defaults.c   |    3 --
+ src/libshcodecs/encoder_private.h    |    6 ++--
+ src/libshcodecs/h264_accessors.c     |   38 -------------------------
+ src/libshcodecs/h264_encode.c        |   19 +++++++++++-
+ src/libshcodecs/mpeg4_encode.c       |   40 ++++++++++++++++++--------
+ src/libshcodecs/property_accessors.c |   51 ++++------------------------------
+ src/libshcodecs/shcodecs_encoder.c   |    3 +-
+ src/tools/ControlFileUtil.c          |    8 -----
+ 22 files changed, 56 insertions(+), 169 deletions(-)
+
+[0]: http://www.renesas.com/fmwk.jsp?cnt=sh_mobile_family_landing.jsp&fp=/products/mpumcu/sh_mobile/
+
