@@ -121,13 +121,13 @@ AC_SUBST(VPU4_ENC_LIBS)
 dnl
 dnl Check for libuiomux
 dnl
-PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.5.0)
+PKG_CHECK_MODULES(UIOMUX, uiomux >= 1.6.0)
 
 
 dnl
 dnl Check for libshveu
 dnl
-PKG_CHECK_MODULES(SHVEU, shveu >= 1.5.0)
+PKG_CHECK_MODULES(SHVEU, shveu >= 1.6.0)
 
 
 dnl

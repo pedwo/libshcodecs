@@ -49,6 +49,7 @@ struct uio_map {
 /* VPU data - common for all encoder & decoder instances */
 typedef struct _SHCodecs_vpu {
 	UIOMux *uiomux;
+	uiomux_resource_t uiores;
 	struct uio_map uio_mmio;
 
 	M4IPH_VPU4_INIT_OPTION params;
@@ -64,16 +65,18 @@ void *m4iph_vpu_open(int stream_buf_size)
 	SHCodecs_vpu *vpu;
 	int ret;
 	void *virt;
+	const char *blocks[2] = { "VPU5F", NULL };
 
 	vpu = calloc(1, sizeof(*vpu));
 	if (!vpu)
 		return NULL;
 
-	vpu->uiomux = uiomux_open();
+	vpu->uiomux = uiomux_open_named(blocks);
 	if (!vpu->uiomux)
 		goto err;
+	vpu->uiores = (1 << 0);
 
-	ret = uiomux_get_mmio (vpu->uiomux, UIOMUX_SH_VPU,
+	ret = uiomux_get_mmio (vpu->uiomux, vpu->uiores,
 		&vpu->uio_mmio.address,
 		&vpu->uio_mmio.size,
 		&vpu->uio_mmio.iomem);
@@ -89,8 +92,8 @@ void *m4iph_vpu_open(int stream_buf_size)
 		vpu->work_buff_size = MIN_STREAM_BUFF_SIZE;
 
 	/* Note: This must be done outside vpu lock as UIOMux malloc also locks the vpu */
-	virt = uiomux_malloc_shared (vpu->uiomux, UIOMUX_SH_VPU, vpu->work_buff_size, 32);
-	vpu->work_buff = (void *)uiomux_virt_to_phys (vpu->uiomux, UIOMUX_SH_VPU, virt);
+	virt = uiomux_malloc_shared (vpu->uiomux, vpu->uiores, vpu->work_buff_size, 32);
+	vpu->work_buff = (void *)uiomux_virt_to_phys (vpu->uiomux, vpu->uiores, virt);
 	if (!vpu->work_buff)
 		goto err;
 
@@ -140,7 +143,7 @@ void m4iph_vpu_close(void *vpu_data)
 void m4iph_vpu_lock(void *vpu_data)
 {
 	SHCodecs_vpu *vpu = (SHCodecs_vpu *)vpu_data;
-	uiomux_lock (vpu->uiomux, UIOMUX_SH_VPU);
+	uiomux_lock (vpu->uiomux, vpu->uiores);
 	current_vpu = vpu;
 }
 
@@ -148,7 +151,7 @@ void m4iph_vpu_unlock(void *vpu_data)
 {
 	SHCodecs_vpu *vpu = (SHCodecs_vpu *)vpu_data;
 	current_vpu = NULL;
-	uiomux_unlock (vpu->uiomux, UIOMUX_SH_VPU);
+	uiomux_unlock (vpu->uiomux, vpu->uiores);
 }
 
 void m4iph_avcbd_perror(char *msg, int error)
@@ -247,7 +250,7 @@ void m4iph_avcbe_perror(char *msg, int error)
 void *m4iph_addr_to_virt(void *vpu_data, void *address)
 {
 	SHCodecs_vpu *vpu = (SHCodecs_vpu *)vpu_data;
-	return uiomux_phys_to_virt (vpu->uiomux, UIOMUX_SH_VPU, (unsigned long)address);
+	return uiomux_phys_to_virt (vpu->uiomux, vpu->uiores, (unsigned long)address);
 }
 
 
@@ -261,7 +264,7 @@ long m4iph_sleep(void)
 #ifdef DISABLE_INT
 	while (m4iph_vpu4_status() != 0);
 #else
-	uiomux_sleep(vpu->uiomux, UIOMUX_SH_VPU);
+	uiomux_sleep(vpu->uiomux, vpu->uiores);
 #endif
 	m4iph_vpu4_int_handler();
 
@@ -309,7 +312,7 @@ unsigned long m4iph_sdr_read(unsigned char *src_phys, unsigned char *dest_virt,
 	SHCodecs_vpu *vpu = current_vpu;
 	unsigned char *src_virt;
 
-	src_virt = uiomux_phys_to_virt (vpu->uiomux, UIOMUX_SH_VPU, (unsigned long)src_phys);
+	src_virt = uiomux_phys_to_virt (vpu->uiomux, vpu->uiores, (unsigned long)src_phys);
 	if (!src_virt) {
 		fprintf(stderr, "%s: src_phys %p invalid\n", __func__, src_phys);
 		return 0;
@@ -325,7 +328,7 @@ void m4iph_sdr_write(unsigned char *dest_phys, unsigned char *src_virt,
 	SHCodecs_vpu *vpu = current_vpu;
 	unsigned char *dest_virt;
 
-	dest_virt = uiomux_phys_to_virt (vpu->uiomux, UIOMUX_SH_VPU, (unsigned long)dest_phys);
+	dest_virt = uiomux_phys_to_virt (vpu->uiomux, vpu->uiores, (unsigned long)dest_phys);
 	if (!dest_virt)
 		fprintf(stderr, "%s: dest_phys %p invalid\n", __func__, dest_phys);
 	memcpy(dest_virt, src_virt, count);
@@ -335,15 +338,15 @@ void m4iph_sdr_write(unsigned char *dest_phys, unsigned char *src_virt,
 void *m4iph_sdr_malloc(void *vpu_data, unsigned long count, int align)
 {
 	SHCodecs_vpu *vpu = (SHCodecs_vpu *)vpu_data;
-	void *virt = uiomux_malloc (vpu->uiomux, UIOMUX_SH_VPU, count, align);
-	return (void *)uiomux_virt_to_phys (vpu->uiomux, UIOMUX_SH_VPU, virt);
+	void *virt = uiomux_malloc (vpu->uiomux, vpu->uiores, count, align);
+	return (void *)uiomux_virt_to_phys (vpu->uiomux, vpu->uiores, virt);
 }
 
 void m4iph_sdr_free(void *vpu_data, void *address, unsigned long count)
 {
 	SHCodecs_vpu *vpu = (SHCodecs_vpu *)vpu_data;
-	void *virt = uiomux_phys_to_virt (vpu->uiomux, UIOMUX_SH_VPU, (unsigned long)address);
-	uiomux_free (vpu->uiomux, UIOMUX_SH_VPU, virt, count);
+	void *virt = uiomux_phys_to_virt (vpu->uiomux, vpu->uiores, (unsigned long)address);
+	uiomux_free (vpu->uiomux, vpu->uiores, virt, count);
 }
 
 
