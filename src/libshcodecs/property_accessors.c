@@ -248,6 +248,7 @@ shcodecs_encoder_set_h264_sps_frame_rate_info(SHCodecs_Encoder * encoder,
 		encoder->other_API_enc_param.vui_main_param.avcbe_timing_info_present_flag = 1;
 		encoder->other_API_enc_param.vui_main_param.avcbe_time_scale = frame_rate_numerator * 2;
 		encoder->other_API_enc_param.vui_main_param.avcbe_num_units_in_tick = frame_rate_denominator;
+		encoder->other_API_enc_param.vui_main_param.avcbe_fixed_frame_rate_flag = 1;
 	}
 
 	return old_value;
