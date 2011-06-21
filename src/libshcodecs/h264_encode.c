@@ -116,7 +116,7 @@ h264_encode_init (SHCodecs_Encoder *enc)
 
 	/* Access Unit Delimiter (AUD) output buffer */
 	enc->aud_buf_info.buff_size = 16;
-	enc->aud_buf_info.buff_top = memalign(4, 16);
+	enc->aud_buf_info.buff_top = memalign(32, 16);
 	if (!enc->aud_buf_info.buff_top)
 		goto err;
 
@@ -375,7 +375,6 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 	long rc, enc_rc;
 	avcbe_slice_stat slice_stat;
 	TAVCBE_FMEM input_buf;
-	TAVCBE_STREAM_BUFF *extra_stream_buff;
 	char pic_type;
 	int start_of_frame;
 	long nal_size;
@@ -385,7 +384,6 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 
 	input_buf.Y_fmemp = py;
 	input_buf.C_fmemp = pc;
-	extra_stream_buff = &enc->aud_buf_info;
 
 	if (enc->frame_counter != 0) {
 		/* Restore stream context */
@@ -421,19 +419,12 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 		/* Reset the amount of filler data used */	
 		enc->output_filler_data = 0;
 
-		/* Output SEI data (if AU delimiter is NOT used) */
-		if (extra_stream_buff == NULL) {
-			rc = h264_output_SEI_parameters(enc);
-			if (rc != 0)
-				return rc;
-		}
-
 		/* Encode the frame */
 		enc_rc = avcbe_encode_picture(enc->stream_info, enc->frm,
 					 AVCBE_ANY_VOP,
 					 AVCBE_OUTPUT_SLICE,
 					 &enc->stream_buff_info,
-					 extra_stream_buff);
+					 &enc->aud_buf_info);
 		if (enc_rc < 0)
 			return vpu_err(enc, __func__, __LINE__, enc_rc);
 		vpu_info_msg(enc, __func__, __LINE__, enc->frm, enc_rc);
@@ -454,12 +445,10 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 			if (start_of_frame) {
 
 				/* Output AU delimiter */
-				if (extra_stream_buff != NULL) {
-					cb_ret = output_data(enc, AUD, enc->aud_buf_info.buff_top,
-							slice_stat.avcbe_AU_unit_bytes);
-					if (cb_ret != 0)
-						return cb_ret;
-				}
+				cb_ret = output_data(enc, AUD, enc->aud_buf_info.buff_top,
+						slice_stat.avcbe_AU_unit_bytes);
+				if (cb_ret != 0)
+					return cb_ret;
 
 				/* If the type is IDR-picture, encode SPS and PPS data (after 1st frame) */
 				if ((enc->frame_counter > 0)
