@@ -332,11 +332,12 @@ setup_vui_params(SHCodecs_Encoder *enc)
 	return 0;
 }
 
-/* Get SPS & PPS data, but do not output it */
+/* Get SPS & PPS data, and output it */
 static long
 h264_encode_sps_pps(SHCodecs_Encoder *enc, avcbe_slice_stat *slice_stat, long frm)
 {
 	long rc;
+	int cb_ret;
 
 	/* SPS data */
 	rc = avcbe_encode_picture(
@@ -351,6 +352,12 @@ h264_encode_sps_pps(SHCodecs_Encoder *enc, avcbe_slice_stat *slice_stat, long fr
 	/* Get the size */
 	avcbe_get_last_slice_stat(enc->stream_info, slice_stat);
 
+	/* output SPS data and PPS data */
+	cb_ret = output_data(enc, SPS, enc->sps_buf_info.buff_top,
+		slice_stat->avcbe_SPS_unit_bytes);
+	if (cb_ret != 0)
+		return cb_ret;
+
 
 	/* PPS data */
 	rc = avcbe_encode_picture(
@@ -364,6 +371,11 @@ h264_encode_sps_pps(SHCodecs_Encoder *enc, avcbe_slice_stat *slice_stat, long fr
 
 	/* Get the size */
 	avcbe_get_last_slice_stat(enc->stream_info, slice_stat);
+
+	cb_ret = output_data(enc, PPS, enc->pps_buf_info.buff_top,
+		slice_stat->avcbe_PPS_unit_bytes);
+	if (cb_ret != 0)
+		return cb_ret;
 
 	return 0;
 }
@@ -406,7 +418,7 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 	}
 
 #ifdef OUTPUT_STREAM_INFO
-	fprintf(stderr, "\nFrame %d:\n", enc->frame_counter);
+	fprintf(stderr, "\nFrame %ld:\n", enc->frame_counter);
 #endif
 
 	/* calculate the next timing need to reset rate control */
@@ -444,36 +456,23 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 
 			if (start_of_frame) {
 
-				/* Output AU delimiter */
+				/* output Access Unit Delimiter (AUD) */
 				cb_ret = output_data(enc, AUD, enc->aud_buf_info.buff_top,
 						slice_stat.avcbe_AU_unit_bytes);
 				if (cb_ret != 0)
 					return cb_ret;
 
-				/* If the type is IDR-picture, encode SPS and PPS data (after 1st frame) */
-				if ((enc->frame_counter > 0)
-				     && (pic_type == AVCBE_IDR_PIC)) {
-					rc = h264_encode_sps_pps(enc, &slice_stat, enc->frm);
-					if (rc != 0)
-						return rc;
-				}
-				if ((enc->frame_counter == 0)
-				    || (pic_type == AVCBE_IDR_PIC)) {
-					/* output SPS data and PPS data */
-					cb_ret = output_data(enc, SPS, enc->sps_buf_info.buff_top,
-						slice_stat.avcbe_SPS_unit_bytes);
-					if (cb_ret != 0)
-						return cb_ret;
-					cb_ret = output_data(enc, PPS, enc->pps_buf_info.buff_top,
-						slice_stat.avcbe_PPS_unit_bytes);
-					if (cb_ret != 0)
-						return cb_ret;
-				}
-
 				/* output SEI parameter */
 				rc = h264_output_SEI_parameters(enc);
 				if (rc != 0)
 					return rc;
+
+				/* If the type is IDR-picture, encode & output SPS and PPS data */
+				if (pic_type == AVCBE_IDR_PIC) {
+					rc = h264_encode_sps_pps(enc, &slice_stat, enc->frm);
+					if (rc != 0)
+						return rc;
+				}
 
 				/* output Filler data (if CPB Buffer overflow) */
 				if ((enc->output_filler_enable == 1)
