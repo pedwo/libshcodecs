@@ -332,50 +332,74 @@ setup_vui_params(SHCodecs_Encoder *enc)
 	return 0;
 }
 
-/* Get SPS & PPS data, and output it */
-static long
-h264_encode_sps_pps(SHCodecs_Encoder *enc, avcbe_slice_stat *slice_stat, long frm)
+int
+shcodecs_encoder_get_h264_headers(SHCodecs_Encoder *enc, int *nr_nals, int **nal_sizes, unsigned char ***nals)
 {
 	long rc;
 	int cb_ret;
+	avcbe_slice_stat slice_stat;
 
 	/* SPS data */
 	rc = avcbe_encode_picture(
-				enc->stream_info, frm,
-				AVCBE_ANY_VOP,
-				AVCBE_OUTPUT_SPS,
-				&enc->sps_buf_info,
-				NULL);
-	if (rc != AVCBE_SPS_OUTPUTTED)
-		return vpu_err(enc, __func__, __LINE__, rc);
+		enc->stream_info, enc->frm,
+		AVCBE_ANY_VOP,
+		AVCBE_OUTPUT_SPS,
+		&enc->sps_buf_info,
+		NULL);
+	if (rc != AVCBE_SPS_OUTPUTTED) {
+		vpu_err(enc, __func__, __LINE__, rc);
+		return -1;
+	}
 
 	/* Get the size */
-	avcbe_get_last_slice_stat(enc->stream_info, slice_stat);
-
-	/* output SPS data and PPS data */
-	cb_ret = output_data(enc, SPS, enc->sps_buf_info.buff_top,
-		slice_stat->avcbe_SPS_unit_bytes);
-	if (cb_ret != 0)
-		return cb_ret;
+	avcbe_get_last_slice_stat(enc->stream_info, &slice_stat);
+	enc->header_nal_sizes[0] = slice_stat.avcbe_SPS_unit_bytes;
+	enc->header_nal_data[0] = enc->sps_buf_info.buff_top;
 
 
 	/* PPS data */
 	rc = avcbe_encode_picture(
-				enc->stream_info, frm,
-				AVCBE_ANY_VOP,
-				AVCBE_OUTPUT_PPS,
-				&enc->pps_buf_info,
-				NULL);
-	if (rc != AVCBE_PPS_OUTPUTTED)
-		return vpu_err(enc, __func__, __LINE__, rc);
+		enc->stream_info, enc->frm,
+		AVCBE_ANY_VOP,
+		AVCBE_OUTPUT_PPS,
+		&enc->pps_buf_info,
+		NULL);
+	if (rc != AVCBE_PPS_OUTPUTTED) {
+		vpu_err(enc, __func__, __LINE__, rc);
+		return -1;
+	}
 
 	/* Get the size */
-	avcbe_get_last_slice_stat(enc->stream_info, slice_stat);
+	avcbe_get_last_slice_stat(enc->stream_info, &slice_stat);
+	enc->header_nal_sizes[1] = slice_stat.avcbe_PPS_unit_bytes;
+	enc->header_nal_data[1] = enc->pps_buf_info.buff_top;
 
-	cb_ret = output_data(enc, PPS, enc->pps_buf_info.buff_top,
-		slice_stat->avcbe_PPS_unit_bytes);
-	if (cb_ret != 0)
-		return cb_ret;
+	*nr_nals = 2;
+	*nal_sizes = enc->header_nal_sizes;
+	*nals = enc->header_nal_data;
+
+	return 0;
+}
+
+/* Get SPS & PPS data, and output it */
+static long
+h264_encode_sps_pps(SHCodecs_Encoder *enc, avcbe_slice_stat *slice_stat, long frm)
+{
+	int rc;
+	int nal, nr_nals;
+	int *nal_sizes;
+	unsigned char **nals;
+
+	rc = shcodecs_encoder_get_h264_headers(enc, &nr_nals, &nal_sizes, &nals);
+	if (rc != 0)
+		return rc;
+
+	/* output the data */
+	for (nal=0; nal<nr_nals; nal++) {
+		rc = output_data(enc, SPS, nals[nal], nal_sizes[nal]);
+		if (rc != 0)
+			return rc;
+	}
 
 	return 0;
 }

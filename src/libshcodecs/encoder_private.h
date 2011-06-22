@@ -67,6 +67,10 @@ struct SHCodecs_Encoder {
 	SHCodecs_Format format;
 	long stream_type; /* VPU middleware stream type */
 
+	/* H.264 header info (SPS, PPS) */
+	int header_nal_sizes[2];
+	unsigned char *header_nal_data[2];
+
 	SHCodecs_Encoder_Input input;
 	void *input_user_data;
 

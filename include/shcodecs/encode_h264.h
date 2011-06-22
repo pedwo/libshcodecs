@@ -7,6 +7,20 @@
  */
 
 /**
+ * Get the SPS & PPS headers.
+ * Valid for H.264 only.
+ * \param encoder The SHCodecs_Encoder* handle
+ * \param nr_nals Returned number of nals
+ * \param nal_sizes Returned size of nals
+ * \param nal_datas Returned nal datas
+ * \returns SPS and PPS NALs
+ * \retval -1 \a encoder invalid or error
+ */
+int
+shcodecs_encoder_get_h264_headers(SHCodecs_Encoder *encoder, int *nr_nals, int **nal_sizes, unsigned char ***nal_datas);
+
+
+/**
  * Get the output_filler_enable.
  * Valid for H.264 only.
  * \param encoder The SHCodecs_Encoder* handle
