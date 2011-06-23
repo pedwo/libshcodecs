@@ -481,10 +481,12 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 			if (start_of_frame) {
 
 				/* output Access Unit Delimiter (AUD) */
-				cb_ret = output_data(enc, AUD, enc->aud_buf_info.buff_top,
-						slice_stat.avcbe_AU_unit_bytes);
-				if (cb_ret != 0)
-					return cb_ret;
+				if (enc->frame_counter != 0) {
+					cb_ret = output_data(enc, AUD, enc->aud_buf_info.buff_top,
+							slice_stat.avcbe_AU_unit_bytes);
+					if (cb_ret != 0)
+						return cb_ret;
+				}
 
 				/* output SEI parameter */
 				rc = h264_output_SEI_parameters(enc);
@@ -492,7 +494,7 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 					return rc;
 
 				/* If the type is IDR-picture, encode & output SPS and PPS data */
-				if (pic_type == AVCBE_IDR_PIC) {
+				if ((enc->frame_counter != 0) && (pic_type == AVCBE_IDR_PIC)) {
 					rc = h264_encode_sps_pps(enc, &slice_stat, enc->frm);
 					if (rc != 0)
 						return rc;
