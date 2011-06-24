@@ -40,6 +40,7 @@
 //#define OUTPUT_INFO_MSGS
 //#define OUTPUT_STREAM_INFO
 
+static long h264_encode_start(SHCodecs_Encoder *enc);
 
 #ifdef OUTPUT_ERROR_MSGS
 #define MSG_LEN 127
@@ -338,6 +339,14 @@ shcodecs_encoder_get_h264_headers(SHCodecs_Encoder *enc, int *nr_nals, int **nal
 	long rc;
 	int cb_ret;
 	avcbe_slice_stat slice_stat;
+
+	if (enc->initialized < 3) {
+		m4iph_vpu_lock(enc->vpu);
+		rc = h264_encode_start(enc);
+		m4iph_vpu_unlock(enc->vpu);
+		if (rc != 0)
+			return rc;
+	}
 
 	/* SPS data */
 	rc = avcbe_encode_picture(
