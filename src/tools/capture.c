@@ -250,12 +250,15 @@ static void uninit_device(capture * cap)
 		free(cap->buffers[0].start);
 		break;
 	case IO_METHOD_MMAP:
-		for (i = 0; i < cap->n_buffers; ++i)
+		for (i = 0; i < cap->n_buffers; ++i) {
 			if (-1 == munmap(cap->buffers[i].start, cap->buffers[i].length))
 				errno_exit("munmap");
+		}
 		break;
 	case IO_METHOD_USERPTR:
-		/* UIO memory, not stuff we malloc'ed */
+		for (i = 0; i < cap->n_buffers; ++i) {
+			uiomux_free(cap->uiomux, UIOMUX_SH_VEU, cap->buffers[i].start, cap->buffers[i].length);
+		}
 		break;
 	}
 

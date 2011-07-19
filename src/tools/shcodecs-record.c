@@ -417,8 +417,10 @@ int cleanup (void)
 
 	fprintf (stderr, "Status   :");
 	for (i=0; i < pvt->nr_encoders; i++) {
-		if (pvt->encdata[i].thread != 0) {
-			pthread_join (pvt->encdata[i].thread, &thread_ret);
+		struct encode_data * encdata = &pvt->encdata[i];
+
+		if (encdata->thread != 0) {
+			pthread_join (encdata->thread, &thread_ret);
 			if ((int)thread_ret < 0) {
 				rc = (int)thread_ret;
 				fprintf (stderr, "\tErr %d", i);
@@ -426,11 +428,27 @@ int cleanup (void)
 				fprintf (stderr, "\tOK");
 			}
 		}
-		shcodecs_encoder_close(pvt->encdata[i].encoder);
-		close_output_file(&pvt->encdata[i].ainfo);
-		framerate_destroy(pvt->encdata[i].enc_framerate);
+		shcodecs_encoder_close(encdata->encoder);
+		close_output_file(&encdata->ainfo);
+		framerate_destroy(encdata->enc_framerate);
 	}
 	fprintf (stderr, "\n");
+
+	/* Free all encoder input frames */
+	for (i=0; i < pvt->nr_encoders; i++) {
+		struct encode_data * encdata = &pvt->encdata[i];
+		int size = (encdata->enc_surface.w * encdata->enc_surface.h * 3) / 2;
+		struct Queue * q;
+
+		q = encdata->enc_input_q;
+		while (queue_length(q) > 0) {
+			uiomux_free(pvt->uiomux, UIOMUX_SH_VPU, queue_deq(q), size);
+		}
+		q = encdata->enc_input_empty_q;
+		while (queue_length(q) > 0) {
+			uiomux_free(pvt->uiomux, UIOMUX_SH_VPU, queue_deq(q), size);
+		}
+	}
 
 	if (pvt->do_preview) {
 		int nr_inputs = (pvt->nr_cameras > MAX_BLEND_INPUTS) ? MAX_BLEND_INPUTS : pvt->nr_cameras;
@@ -440,9 +458,16 @@ int cleanup (void)
 		display_close(pvt->display);
 
 #ifdef HAVE_SHBEU
+		/* Free blend input surfaces */
 		for (i=0; i < nr_inputs; i++) {
-			size = (pvt->beu_in[i].s.pitch * pvt->beu_in[i].s.h * 3) / 2;
-			uiomux_free(pvt->uiomux, UIOMUX_SH_BEU, pvt->beu_in[i].s.py, size);
+			struct ren_vid_surface *s = &pvt->beu_in[i].s;
+			size = (s->pitch * s->h * 3) / 2;
+			uiomux_free(pvt->uiomux, UIOMUX_SH_BEU, s->py, size);
+
+			if (s->pa) {
+				size = s->pitch * s->h;
+				uiomux_free(pvt->uiomux, UIOMUX_SH_BEU, s->pa, size);
+			}
 		}
 
 		shbeu_close(pvt->beu);
