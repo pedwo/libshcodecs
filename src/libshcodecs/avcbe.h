@@ -432,7 +432,7 @@ typedef struct {
 	unsigned long avcbe_error_resilience_mode;	/* (14) */
 	unsigned long avcbe_video_packet_size_mb;	/* (15) */
 	unsigned long avcbe_video_packet_size_bit;	/* (16) */
-	unsigned long avcbe_video_packet_header_extention;	/* (17) */
+	unsigned long avcbe_video_packet_header_extension;	/* (17) */
 	unsigned long avcbe_data_partitioned;	/* (18) */
 	unsigned long avcbe_reversible_vlc;	/* (19) */
 	unsigned long avcbe_high_quality;	/* (20) */

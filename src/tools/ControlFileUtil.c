@@ -219,7 +219,7 @@ static const struct enc_uoptions_t mpeg4_options[] = {
 	{ "error_resilience_mode", &shcodecs_encoder_set_mpeg4_error_resilience_mode },
 	{ "video_packet_size_mb", &shcodecs_encoder_set_mpeg4_video_packet_size_mb },
 	{ "video_packet_size_bit", &shcodecs_encoder_set_mpeg4_video_packet_size_bit },
-	{ "video_packet_header_extention", &shcodecs_encoder_set_mpeg4_video_packet_header_extention },
+	{ "video_packet_header_extension", &shcodecs_encoder_set_mpeg4_video_packet_header_extension },
 	{ "data_partitioned", &shcodecs_encoder_set_mpeg4_data_partitioned },
 	{ "reversible_vlc", &shcodecs_encoder_set_mpeg4_reversible_vlc },
 	{ "high_quality", &shcodecs_encoder_set_mpeg4_high_quality },

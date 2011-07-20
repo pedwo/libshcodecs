@@ -156,8 +156,8 @@
 		shcodecs_encoder_set_mpeg4_video_packet_size_mb;
 		shcodecs_encoder_get_mpeg4_video_packet_size_bit;
 		shcodecs_encoder_set_mpeg4_video_packet_size_bit;
-		shcodecs_encoder_get_mpeg4_video_packet_header_extention;
-		shcodecs_encoder_set_mpeg4_video_packet_header_extention;
+		shcodecs_encoder_get_mpeg4_video_packet_header_extension;
+		shcodecs_encoder_set_mpeg4_video_packet_header_extension;
 		shcodecs_encoder_get_mpeg4_data_partitioned;
 		shcodecs_encoder_set_mpeg4_data_partitioned;
 		shcodecs_encoder_get_mpeg4_reversible_vlc;

@@ -695,14 +695,14 @@ shcodecs_encoder_set_mpeg4_video_packet_size_bit(SHCodecs_Encoder *
 * \retval -1 \a encoder invalid
 */
 unsigned long
-shcodecs_encoder_get_mpeg4_video_packet_header_extention(SHCodecs_Encoder *
+shcodecs_encoder_get_mpeg4_video_packet_header_extension(SHCodecs_Encoder *
 							 encoder)
 {
 	if (encoder == NULL)
 		return -1;
 
 	return encoder->other_options_mpeg4.
-	    avcbe_video_packet_header_extention;
+	    avcbe_video_packet_header_extension;
 }
 
 /**
@@ -713,10 +713,10 @@ shcodecs_encoder_get_mpeg4_video_packet_header_extention(SHCodecs_Encoder *
 * \retval -1 \a encoder invalid
 */
 unsigned long
-shcodecs_encoder_set_mpeg4_video_packet_header_extention(SHCodecs_Encoder *
+shcodecs_encoder_set_mpeg4_video_packet_header_extension(SHCodecs_Encoder *
 							 encoder,
 							 unsigned long
-							 mpeg4_video_packet_header_extention)
+							 mpeg4_video_packet_header_extension)
 {
 	unsigned long old_value;
 
@@ -725,9 +725,9 @@ shcodecs_encoder_set_mpeg4_video_packet_header_extention(SHCodecs_Encoder *
 
 	old_value =
 	    encoder->other_options_mpeg4.
-	    avcbe_video_packet_header_extention;
-	encoder->other_options_mpeg4.avcbe_video_packet_header_extention =
-	    mpeg4_video_packet_header_extention;
+	    avcbe_video_packet_header_extension;
+	encoder->other_options_mpeg4.avcbe_video_packet_header_extension =
+	    mpeg4_video_packet_header_extension;
 
 	return old_value;
 }

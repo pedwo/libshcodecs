@@ -366,27 +366,27 @@ shcodecs_encoder_set_mpeg4_video_packet_size_bit(SHCodecs_Encoder *
 						 mpeg4_video_packet_size_bit);
 
 /**
- * Get the mpeg4_video_packet_header_extention.
+ * Get the mpeg4_video_packet_header_extension.
  * \param encoder The SHCodecs_Encoder* handle
- * \returns The mpeg4_video_packet_header_extention
+ * \returns The mpeg4_video_packet_header_extension
  * \retval -1 \a encoder invalid
  */
 unsigned long
-shcodecs_encoder_get_mpeg4_video_packet_header_extention(SHCodecs_Encoder *
+shcodecs_encoder_get_mpeg4_video_packet_header_extension(SHCodecs_Encoder *
 							 encoder);
 
 /**
- * Set the mpeg4_video_packet_header_extention.
+ * Set the mpeg4_video_packet_header_extension.
  * \param encoder The SHCodecs_Encoder* handle
- * \param mpeg4_video_packet_header_extention The new value for \a mpeg4_video_packet_header_extention
- * \returns The previous value of \a mpeg4_video_packet_header_extention
+ * \param mpeg4_video_packet_header_extention The new value for \a mpeg4_video_packet_header_extension
+ * \returns The previous value of \a mpeg4_video_packet_header_extension
  * \retval -1 \a encoder invalid
  */
 unsigned long
-shcodecs_encoder_set_mpeg4_video_packet_header_extention(SHCodecs_Encoder *
+shcodecs_encoder_set_mpeg4_video_packet_header_extension(SHCodecs_Encoder *
 							 encoder,
 							 unsigned long
-							 mpeg4_video_packet_header_extention);
+							 mpeg4_video_packet_header_extension);
 
 /**
  * Get the mpeg4_data_partitioned.

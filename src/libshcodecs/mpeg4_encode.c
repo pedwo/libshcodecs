@@ -111,7 +111,7 @@ mpeg4_encode_init_other_options (SHCodecs_Encoder *enc)
 	    AVCBE_ERM_NORMAL;
 	enc->other_options_mpeg4.avcbe_video_packet_size_mb = 0;
 	enc->other_options_mpeg4.avcbe_video_packet_size_bit = 0;
-	enc->other_options_mpeg4.avcbe_video_packet_header_extention =
+	enc->other_options_mpeg4.avcbe_video_packet_header_extension =
 	    AVCBE_OFF;
 	/* 'AVCBE_ON' -> 'AVCBE_OFF' changed at Version2 */
 	enc->other_options_mpeg4.avcbe_data_partitioned = AVCBE_OFF;
