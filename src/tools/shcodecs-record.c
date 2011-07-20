@@ -588,9 +588,11 @@ int setup_input_surface(DISPLAY *disp, UIOMux *uiomux, struct shbeu_surface *s, 
 	if (cam_aspect > lcd_aspect) {
 		if (w > lcd_w) w = lcd_w;
 		h = (int) ((float)w / cam_aspect);
+		h = h & ~3;
 	} else {
 		if (h > lcd_h) h = lcd_h;
 		w = (int)((float)h * cam_aspect);
+		w = w & ~3;
 	}
 
 	size = (w * h * 3)/2;
