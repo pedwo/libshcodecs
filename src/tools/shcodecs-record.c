@@ -20,6 +20,27 @@
 /*
  * This program captures v4l2 input (e.g. from a camera), optionally crops
  * and rotates this, encodes this and shows it on the display.
+
+ The diagram below give a very rough idea of the data flow & processing.
+ Note that the blend only occurs if more than one camera is used, otherwise
+ the second VEU writes directly to the frame buffer.
+
+     v4l2                  scaled
+    capture             encoder input              encoded
+   +-------+             +----------+               file
+   |       +-+      VEU  |          |++    VPU   +--------+
+   |       | | +--+----> |          | |+-------->|        |
+   +-------+ |    |      +----------+ |          +--------+
+     +-------+    |        +----------+
+                  |
+                  | VEU
+                  |         scaled                frame buffer
+                  |      blend input            +---------------+
+                  |       +--------+    BEU     |               |++
+                  +-----> |        | +--------> |               | |
+                          +--------+            |               | |
+                                                +---------------+ |
+                                                  +---------------+
  */
 
 #ifdef HAVE_CONFIG_H
