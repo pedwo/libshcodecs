@@ -178,7 +178,7 @@ int decode(struct dec_opts *opts)
 	int bytes_decoded;
 	ssize_t n;
 
-	/* H.264 spec: Max NAL size is the size of an uncomrpessed immage divided
+	/* H.264 spec: Max NAL size is the size of an uncompressed image divided
 	   by the "Minimum Compression Ratio", MinCR. This is 2 for most levels
 	   but is 4 for levels 3.1 to 4. Since we don't know the level, we just
 	   use MinCR=2. */

@@ -26,8 +26,8 @@
 #include <string.h>
 #include <sys/time.h>
 
-#include "avcbe.h"		/* SuperH MEPG-4&H.264 Video Encode Library Header */
-#include "m4iph_vpu4.h"		/* SuperH MEPG-4&H.264 Video Driver Library Header */
+#include "avcbe.h"		/* SuperH MPEG-4&H.264 Video Encode Library Header */
+#include "m4iph_vpu4.h"		/* SuperH MPEG-4&H.264 Video Driver Library Header */
 #include "encoder_common.h"
 #include "m4driverif.h"
 

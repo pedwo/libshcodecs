@@ -94,7 +94,7 @@ static void
 usage (const char *progname)
 {
 	printf ("Usage: %s [options] filename\n", progname);
-	printf ("Decode a MPEG-4 or H.264 elementry stream and show on the LCD.\n");
+	printf ("Decode a MPEG-4 or H.264 elementary stream and show on the LCD.\n");
 	printf ("\nFile options\n");
 	printf ("  -i, --input        Set the video input filename\n");
 	printf ("  -l, --loop         Loop playback\n");
@@ -230,7 +230,7 @@ static int file_read_init(struct private_data *pvt, char *video_filename)
 		return -1;
 	}
 
-	/* The input buffer is twice the size of the largest NAL/VOP becuase we
+	/* The input buffer is twice the size of the largest NAL/VOP because we
 	   could have 99% of one NAL/VOP unused in the buffer and need to store
 	   the next read data after this */
 	pvt->input_buf = malloc(pvt->max_nal_size * 2);
@@ -529,7 +529,7 @@ int main(int argc, char **argv)
 		exit(-6);
 	}
 
-	/* H.264 spec: Max NAL size is the size of an uncomrpessed immage divided
+	/* H.264 spec: Max NAL size is the size of an uncompressed image divided
 	   by the "Minimum Compression Ratio", MinCR. This is 2 for most levels
 	   but is 4 for levels 3.1 to 4. Since we don't know the level, we just
 	   use MinCR=2. */
@@ -551,7 +551,7 @@ int main(int argc, char **argv)
 	debug_printf("Format:             %s\n", stream_type == SHCodecs_Format_H264 ? "H.264" : "MPEG4");
 	debug_printf("File resolution:    %dx%d\n", pvt->src_w, pvt->src_h);
 
-	/* Output thread initialisation */
+	/* Output thread initialization */
 	pthread_mutex_init (&pvt->mutex, NULL);
 	pthread_cond_init (&pvt->avail, NULL);
 	pthread_cond_init (&pvt->ready, NULL);
@@ -572,7 +572,7 @@ int main(int argc, char **argv)
 	/* setup callback for frame decoded */
 	shcodecs_decoder_set_decoded_callback (decoder, local_vpu4_decoded, pvt);
 
-	/* File read initialisation */
+	/* File read initialization */
 	if (file_read_init(pvt, video_filename) < 0) {
 		fprintf(stderr, "Unable to read file\n");
 		exit(-1);

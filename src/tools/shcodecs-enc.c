@@ -91,7 +91,7 @@ static int setup_enc(char * ctl_file)
 	/* Setup encoder */
 	encoder = shcodecs_encoder_init(width, height, stream_type);
 	if (!encoder) {
-		fprintf(stderr, "Error initialising encoder");
+		fprintf(stderr, "Error initializing encoder");
 		goto err;
 	}
 

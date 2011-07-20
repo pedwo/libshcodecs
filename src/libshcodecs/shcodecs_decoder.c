@@ -94,10 +94,10 @@ SHCodecs_Decoder *shcodecs_decoder_init(int width, int height, SHCodecs_Format f
 	decoder->frame_count = 0;
 	decoder->last_cb_ret = 0;
 
-	/* H.264 spec: Max NAL size is the size of an uncomrpessed immage divided
+	/* H.264 spec: Max NAL size is the size of an uncompressed image divided
 	   by the "Minimum Compression Ratio", MinCR. This is 2 for most levels
 	   but is 4 for levels 3.1 to 4. Since we don't know the level, we use
-	   MinCR=2 for sizes upto D1 and MinCR=4 for over D1. */
+	   MinCR=2 for sizes up to D1 and MinCR=4 for over D1. */
 	decoder->max_nal_size = (width * height * 3) / 2; /* YCbCr420 */
 	decoder->max_nal_size /= 2; /* Apply MinCR */
 	if (width*height > 720*576)

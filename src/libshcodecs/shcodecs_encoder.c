@@ -33,7 +33,7 @@
 #define MAX(a,b) ((a>b)?(a):(b))
 
 /* Minimum size as this buffer is used for data other than encoded frames */
-/* TODO min size has not been verified, just takem from sample code */
+/* TODO min size has not been verified, just taken from sample code */
 #define MIN_STREAM_BUFF_SIZE (160000*4)
 
 
@@ -301,7 +301,7 @@ shcodecs_encoder_get_input_user_data(SHCodecs_Encoder *encoder)
 /**
  * Set the callback for libshcodecs to call when encoded data is available.
  * \param encoder The SHCodecs_Encoder* handle
- * \param encodec_cb The callback function
+ * \param output_cb The callback function
  * \param user_data Additional data to pass to the callback function
  */
 int

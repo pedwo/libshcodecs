@@ -721,7 +721,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	/* VEU initialisation */
+	/* VEU initialization */
 	if (!(pvt->veu = shveu_open())) {
 		fprintf (stderr, "Could not open VEU, exiting\n");
 		return -1;
@@ -772,7 +772,7 @@ int main(int argc, char *argv[])
 	for (i=0; i < pvt->nr_cameras; i++) {
 		struct camera_data *cam = &pvt->cameras[i];
 
-		/* Camera capture initialisation */
+		/* Camera capture initialization */
 		cam->ceu = capture_open_userio(cam->devicename, cam->cap_w, cam->cap_h, pvt->uiomux);
 		if (cam->ceu == NULL) {
 			fprintf(stderr, "capture_open failed, exiting\n");
@@ -832,7 +832,7 @@ int main(int argc, char *argv[])
 		debug_printf("\t%dx%d", encdata->enc_surface.w, encdata->enc_surface.h);
 #endif
 
-		/* VPU Encoder initialisation */
+		/* VPU Encoder initialization */
 		if (open_output_file(&encdata->ainfo)) {
 			return -8;
 		}
@@ -862,7 +862,7 @@ int main(int argc, char *argv[])
 		encdata->alive = 1;
 	}
 
-	/* Set up framedropping */
+	/* Set up frame dropping */
 	fprintf (stderr, "\nTarget   @");
 	for (i=0; i < pvt->nr_encoders; i++) {
 		target_fps10 = shcodecs_encoder_get_frame_rate(pvt->encdata[i].encoder);

@@ -62,13 +62,13 @@ int display_flip(DISPLAY *disp);
 /* The functions below are used to place an image on the display */
 
 /**
- * Position the output fullscreen (but observe aspect ratio)
+ * Position the output full screen (but observe aspect ratio)
  * \param disp Handle returned from display_open
  */
 void display_set_fullscreen(DISPLAY *disp);
 
 /**
- * Explicity position the output
+ * Explicitly position the output
  * \param disp Handle returned from display_open
  */
 void display_set_position(DISPLAY *disp, int w, int h, int x, int y);
