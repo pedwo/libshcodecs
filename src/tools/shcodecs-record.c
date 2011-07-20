@@ -831,7 +831,7 @@ int main(int argc, char *argv[])
 
 		/* Allocate encoder input frames & and add them to empty queue */
 		size = (encdata->enc_surface.w * encdata->enc_surface.h * 3) / 2;
-		for (j=0; j<shcodecs_encoder_get_min_input_frames(encdata->encoder); j++) {
+		for (j=0; j<shcodecs_encoder_get_min_input_frames(encdata->encoder)+1; j++) {
 			void *user = uiomux_malloc (pvt->uiomux, UIOMUX_SH_VPU, size, 32);
 			queue_enq (encdata->enc_input_empty_q, user);
 		}
