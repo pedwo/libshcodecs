@@ -378,7 +378,7 @@ shcodecs_encoder_get_mpeg4_video_packet_header_extension(SHCodecs_Encoder *
 /**
  * Set the mpeg4_video_packet_header_extension.
  * \param encoder The SHCodecs_Encoder* handle
- * \param mpeg4_video_packet_header_extention The new value for \a mpeg4_video_packet_header_extension
+ * \param mpeg4_video_packet_header_extension The new value for \a mpeg4_video_packet_header_extension
  * \returns The previous value of \a mpeg4_video_packet_header_extension
  * \retval -1 \a encoder invalid
  */
