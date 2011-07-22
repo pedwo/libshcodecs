@@ -53,7 +53,7 @@ DISPLAY *display_open(void)
 	if (!disp)
 		return NULL;
 
-	disp->veu = shveu_open();
+	disp->veu = shveu_open_named("VEU");
 	if (!disp->veu) {
 		free(disp);
 		return NULL;
@@ -220,6 +220,7 @@ int display_update(
 		src_sel.y = 0;
 
 		/* TODO Handle output off-surface to the left or above by using part of the input */
+		scale = 1.0;
 
 		/* Handle output off-surface to the right or below by cropping the input & output */
 		if ((dst_sel.x + dst_sel.w) > disp->lcd_w) {
