@@ -507,8 +507,7 @@ static void open_device(capture * cap, UIOMux * uiomux)
 		exit(EXIT_FAILURE);
 	}
 
-	cap->fd =
-	    open(cap->dev_name, O_RDWR /* required */ | O_NONBLOCK, 0);
+	cap->fd = open(cap->dev_name, O_RDWR /* required */ | O_NONBLOCK, 0);
 
 	if (-1 == cap->fd) {
 		fprintf(stderr, "Cannot open '%s': %d, %s\n",
