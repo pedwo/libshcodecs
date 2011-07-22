@@ -110,7 +110,7 @@ struct SHCodecs_Encoder {
 	TAVCBE_STREAM_BUFF end_code_buff_info;
 
 	/* General encoder internals (general_accessors.c) */
-	long frame_no_increment;	/* Increment value of Frame number to be encoded for 
+	long frame_no_increment;	/* Increment value of Frame number to be encoded for
 					   m4vse_encode_picture function */
 	/* encoding parameters */
 	int actual_fps_x10;	  /* The actual frames per second x10 (i.e. 300=30fps) */
@@ -156,4 +156,3 @@ int mpeg4_encode_finish (SHCodecs_Encoder *enc);
 int mpeg4_encode_run (SHCodecs_Encoder * encoder);
 
 #endif				/* __ENCODER_PRIVATE_H__ */
-

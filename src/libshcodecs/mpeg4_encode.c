@@ -527,5 +527,3 @@ mpeg4_encode_run (SHCodecs_Encoder *enc)
 
 	return rc;
 }
-
-

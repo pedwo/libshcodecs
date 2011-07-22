@@ -37,7 +37,7 @@
 //02            encoder->encoding_property.avcbe_bitrate = 384000;
 //03            encoder->encoding_property.avcbe_xpic_size = 320;
 //04            encoder->encoding_property.avcbe_ypic_size = 240;
-//05            encoder->encoding_property.avcbe_frame_rate = 150; 
+//05            encoder->encoding_property.avcbe_frame_rate = 150;
 
 #ifdef CAPT_INPUT
 //06            encoder->encoding_property.avcbe_I_vop_interval = 0;
@@ -80,7 +80,7 @@
 #if 0
 //01                    appli_info->other_options_h264.avcbe_Ivop_quant_initial_value = 30;
 //02                    appli_info->other_options_h264.avcbe_Pvop_quant_initial_value = 30;
-//03                    appli_info->other_options_h264.avcbe_use_dquant = AVCBE_ON;     
+//03                    appli_info->other_options_h264.avcbe_use_dquant = AVCBE_ON;
 //04                    appli_info->other_options_h264.avcbe_clip_dquant_next_mb = 4;
 //05                    appli_info->other_options_h264.avcbe_clip_dquant_frame = 7;
 //06                    appli_info->other_options_h264.avcbe_quant_min = 10;
@@ -101,7 +101,7 @@
 //18                    appli_info->other_options_h264.avcbe_intra_thr_2 = 5000;
 //19                    appli_info->other_options_h264.avcbe_sad_intra_bias = 0;
 
-//20                    appli_info->other_options_h264.avcbe_regularly_inserted_I_type = 
+//20                    appli_info->other_options_h264.avcbe_regularly_inserted_I_type =
 //                                                              AVCBE_I_PIC;
 #if 0
 		if (case_no == CASE1_H264_001) {
@@ -133,7 +133,7 @@
 			    other_options_h264.avcbe_slice_size_bit = 0;
 		}
 #endif
-//25                    appli_info->other_options_h264.avcbe_slice_type_value_pattern = 
+//25                    appli_info->other_options_h264.avcbe_slice_type_value_pattern =
 //                                                              AVCBE_SLICE_TYPE_VALUE_HIGH;
 //26                    appli_info->other_options_h264.avcbe_use_mb_partition = AVCBE_ON;
 //27                    appli_info->other_options_h264.avcbe_mb_partition_vector_thr = 0;

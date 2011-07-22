@@ -14,9 +14,9 @@ extern "C" {
  *
  * Features:
  *  - Simple callback-based encoding and decoding
- * 
+ *
  * \subsection contents Contents
- * 
+ *
  * - \link shcodecs.h shcodecs.h \endlink:
  * Documentation of the SHCodecs C API
  *
@@ -25,10 +25,10 @@ extern "C" {
  *
  * - \link building Building \endlink:
  * \section API
- * 
+ *
  * The API is modelled on a conventional open/read/write/close
  * file descriptor interface.
- * 
+ *
  */
 
 /** \defgroup configuration Configuration
@@ -96,4 +96,3 @@ extern "C" {
 #endif
 
 #endif /* __SHCODECS_H__ */
-

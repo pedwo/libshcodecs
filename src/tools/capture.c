@@ -449,7 +449,7 @@ static void init_device(capture * cap)
 				break;
 			}
 		}
-	} else {	
+	} else {
 		/* Errors ignored. */
 	}
 
@@ -457,7 +457,7 @@ static void init_device(capture * cap)
 	CLEAR(fmt);
 
 	fmt.type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	fmt.fmt.pix.width       = cap->width; 
+	fmt.fmt.pix.width       = cap->width;
 	fmt.fmt.pix.height      = cap->height;
 	fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_NV12;
 	fmt.fmt.pix.field       = V4L2_FIELD_ANY;
@@ -494,7 +494,7 @@ static void close_device(capture * cap)
 
 static void open_device(capture * cap, UIOMux * uiomux)
 {
-	struct stat st; 
+	struct stat st;
 
 	if (-1 == stat(cap->dev_name, &st)) {
 		fprintf(stderr, "Cannot identify '%s': %d, %s\n",
@@ -572,4 +572,3 @@ unsigned int capture_get_pixel_format(capture * cap)
 {
 	return cap->pixel_format;
 }
-

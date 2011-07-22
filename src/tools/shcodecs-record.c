@@ -933,4 +933,3 @@ exit_err:
 	/* General exit, prior to thread creation */
 	exit (1);
 }
-

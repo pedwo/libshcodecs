@@ -361,7 +361,7 @@ shcodecs_encoder_finish(SHCodecs_Encoder * encoder)
 }
 
 int
-shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder, 
+shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder,
 				void *y_input, void *c_input)
 {
 	if (encoder == NULL) return -1;

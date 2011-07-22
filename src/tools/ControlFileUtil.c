@@ -398,4 +398,3 @@ int ctrlfile_get_size_type(const char *ctrl_file,
 
 	return 1;
 }
-

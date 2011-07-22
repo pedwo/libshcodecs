@@ -380,7 +380,7 @@ static int open_input(struct shdec * dec, char *input_filename)
 	}
 	return 0;
 }
- 
+
 static int open_output(struct shdec * dec, char *output_filename)
 {
 	dec->output_fd = open(output_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -416,8 +416,8 @@ local_init (struct shdec * dec, char *input_filename, char *output_filename)
 
 	return 0;
 }
-	
-	
+
+
 static int
 local_close (struct shdec * dec)
 {
@@ -466,7 +466,7 @@ int decode(struct dec_opts *opts)
 		int rem;
 
 		bytes_decoded = shcodecs_decode (decoder, dec->input_buffer, dec->si_isize);
-		
+
 		rem = dec->si_isize - bytes_decoded;
 		memmove(dec->input_buffer, dec->input_buffer + bytes_decoded, rem);
 		n = read (dec->input_fd, dec->input_buffer + rem, dec->max_nal_size - rem);
@@ -507,7 +507,7 @@ int dec_main(int argc, char **argv)
 void *dec_thread(void *data)
 {
 	struct argst *args = (struct argst *) data;
-	
+
 	return (void *)dec_main(args->argc, args->argv);
 }
 
@@ -699,5 +699,3 @@ int main(int argc, char **argv)
 	free(is_dec);
 	return ret;
 }
-
-

@@ -55,7 +55,7 @@ void m4iph_sdr_write_vpu4(unsigned char *address, unsigned char *buffer,
 }
 
 /*-----------------------------------------------------------------------------*/
-/* Example of function created by the user, which is called when cpb_buffer 
+/* Example of function created by the user, which is called when cpb_buffer
  * became over follow. */
 /*-----------------------------------------------------------------------------*/
 unsigned long avcbe_insert_filler_data_for_cpb_buffer(unsigned long
@@ -83,4 +83,3 @@ unsigned long avcbe_insert_filler_data_for_cpb_buffer(unsigned long
 	return input_filler_size;
 #endif
 }
-

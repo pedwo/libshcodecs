@@ -20,7 +20,7 @@
 /*
  * Program to decode video and show on the display.
  *
- * This plays an Elementary Stream. Whilst it is possible to get the width & 
+ * This plays an Elementary Stream. Whilst it is possible to get the width &
  * height of the video from this, libshcodecs does not support this as the
  * information is available in the file container. Therefore, for streams
  * other than QVGA, you must specify the width & height of the video being
@@ -620,4 +620,3 @@ exit_ok:
 exit_err:
 	exit (1);
 }
-

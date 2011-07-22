@@ -81,7 +81,7 @@ vpu_info_msg(SHCodecs_Encoder *enc, const char *func, int line, long frm, long r
 			(int) frm,
 			(int) enc->frame_counter);
 	}
-} 
+}
 #else
 #define vpu_info_msg(encoder, func, line, frm, rc)
 #endif
@@ -461,7 +461,7 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 	/* Continue encoding until a frame has been encoded or skipped */
 	while (1) {
 
-		/* Reset the amount of filler data used */	
+		/* Reset the amount of filler data used */
 		enc->output_filler_data = 0;
 
 		/* Encode the frame */
@@ -542,9 +542,9 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 			enc->frame_num_delta = 0;
 		}
 
-	
+
 		/* End of a frame? */
-		if (enc_rc == AVCBE_ENCODE_SUCCESS) {	
+		if (enc_rc == AVCBE_ENCODE_SUCCESS) {
 			/* Switch the indexes to the reference and locally decoded frames */
 			if (enc->ldec == 0) {
 				enc->ldec = 1;
@@ -718,4 +718,3 @@ h264_encode_run (SHCodecs_Encoder *enc)
 
 	return rc;
 }
-

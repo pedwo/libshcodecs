@@ -36,12 +36,12 @@ int read_1frame_YCbCr420sp(FILE *fh, int w, int h, unsigned char *pY, unsigned c
 {
 	int read;
 
-	/* Luma */	
+	/* Luma */
 	read = fread(pY, 1, w * h, fh);
 	if (read < (w * h))
 		return 1;
 
-	/* Packed chroma */	
+	/* Packed chroma */
 	read = fread(pC, 1, w * h / 2, fh);
 	if (read < ( w * h / 2))
 		return 1;
@@ -211,4 +211,3 @@ int write_output_file(APPLI_INFO * appli_info, unsigned char *data, int length)
 		return -1;
 	}
 }
-

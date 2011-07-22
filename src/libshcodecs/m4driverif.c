@@ -363,4 +363,3 @@ long m4iph_enc_continue(long output_bits)
 {
 	return 1;
 }
-

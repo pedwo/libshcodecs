@@ -93,7 +93,7 @@ void cleanup (void)
 	time = (double)framerate_elapsed_time (enc_framerate);
 	time /= 1000000;
 
-	// Width Height Bitrate FPS 
+	// Width Height Bitrate FPS
 	printf ("%ld\t%ld\t%ld\t%.2f\n", ainfo.xpic, ainfo.ypic,
 		       shcodecs_encoder_get_bitrate(encoder),
 		       framerate_mean_fps(enc_framerate));

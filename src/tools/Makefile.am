@@ -74,5 +74,3 @@ shcodecs_cap_SOURCES =  \
 
 shcodecs_cap_CFLAGS = $(SHVEU_CFLAGS) $(UIOMUX_CFLAGS)
 shcodecs_cap_LDADD = $(SHVEU_LIBS) $(UIOMUX_LIBS) -lrt $(SHCODECS_LIBS)
-
-

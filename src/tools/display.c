@@ -262,4 +262,3 @@ void display_set_position(DISPLAY *disp, int w, int h, int x, int y)
 	disp->dst_sel.x = x;
 	disp->dst_sel.y = y;
 }
-

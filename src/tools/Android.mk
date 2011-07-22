@@ -3,16 +3,16 @@ LOCAL_PATH:= $(call my-dir)
 # shcodecs-dec
 include $(CLEAR_VARS)
 LOCAL_C_INCLUDES := external/libshcodecs/include
-LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B 
+LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B
 LOCAL_SRC_FILES := shcodecs-dec.c
 LOCAL_SHARED_LIBRARIES := libshcodecs
 LOCAL_MODULE := shcodecs-dec
 include $(BUILD_EXECUTABLE)
 
-# shcodecs-enc 
+# shcodecs-enc
 include $(CLEAR_VARS)
 LOCAL_C_INCLUDES := external/libshcodecs/include
-LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B 
+LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B
 LOCAL_SRC_FILES := \
         shcodecs-enc.c \
         capture.c \
@@ -23,10 +23,10 @@ LOCAL_SHARED_LIBRARIES := libshcodecs
 LOCAL_MODULE := shcodecs-enc
 include $(BUILD_EXECUTABLE)
 
-# shcodecs-record 
+# shcodecs-record
 include $(CLEAR_VARS)
 LOCAL_C_INCLUDES := external/libshcodecs/include
-LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B 
+LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B
 LOCAL_SRC_FILES := \
         shcodecs-record.c \
         capture.c \
@@ -38,10 +38,10 @@ LOCAL_SHARED_LIBRARIES := libshcodecs
 LOCAL_MODULE := shcodecs-record
 include $(BUILD_EXECUTABLE)
 
-# shcodecs-cap 
+# shcodecs-cap
 include $(CLEAR_VARS)
 LOCAL_C_INCLUDES := external/libshcodecs/include
-LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B 
+LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B
 LOCAL_SRC_FILES := capture.c shcodecs-cap.c
 LOCAL_SHARED_LIBRARIES := libshcodecs
 LOCAL_MODULE := shcodecs-cap
@@ -51,7 +51,7 @@ include $(BUILD_EXECUTABLE)
 # shcodecs-play
 #include $(CLEAR_VARS)
 #LOCAL_C_INCLUDES := external/libshcodecs/include
-#LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B 
+#LOCAL_CFLAGS := -DSH -D_LIT -DVPU4=1 -DVPU3IP -DVPU4IP -DANNEX_B
 #LOCAL_SRC_FILES := shcodecs-play.c veu_colorspace.c
 #LOCAL_SHARED_LIBRARIES := libshcodecs
 #LOCAL_MODULE := shcodecs-play

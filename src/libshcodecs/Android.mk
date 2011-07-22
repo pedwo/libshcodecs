@@ -4,7 +4,7 @@ include $(CLEAR_VARS)
 LOCAL_C_INCLUDES := \
 	external/libshcodecs/include \
 
-LOCAL_CFLAGS := -DSH -DVPU4=1 -DANNEX_B 
+LOCAL_CFLAGS := -DSH -DVPU4=1 -DANNEX_B
 
 LOCAL_SRC_FILES := \
         m4driverif.c \
@@ -24,4 +24,3 @@ LOCAL_SHARED_LIBRARIES := libstdc++ libm4dec libm
 LOCAL_MODULE := libshcodecs
 LOCAL_PRELINK_MODULE := false
 include $(BUILD_SHARED_LIBRARY)
-

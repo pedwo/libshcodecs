@@ -215,7 +215,7 @@ float shcodecs_encoder_get_h264_sps_frame_rate_info(SHCodecs_Encoder * encoder)
 		return -1;
 	if (encoder->other_API_enc_param.vui_main_param.avcbe_timing_info_present_flag == 0)
 		return -2;
-	      
+
 	return  encoder->other_API_enc_param.vui_main_param.avcbe_time_scale / encoder->other_API_enc_param.vui_main_param.avcbe_num_units_in_tick;
 }
 

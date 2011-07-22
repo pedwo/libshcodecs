@@ -209,7 +209,7 @@ int decode(struct dec_opts *opts)
 		int rem;
 
 		bytes_decoded = shcodecs_decode (decoder, dec->input_buffer, dec->si_isize);
-		
+
 		rem = dec->si_isize - bytes_decoded;
 		memmove(dec->input_buffer, dec->input_buffer + bytes_decoded, rem);
 		n = fread (dec->input_buffer + rem, 1, dec->max_nal_size - rem, stdin);
@@ -270,4 +270,3 @@ int main(int argc, char **argv)
 
 	return ret;
 }
-

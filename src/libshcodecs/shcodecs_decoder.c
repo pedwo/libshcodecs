@@ -749,4 +749,3 @@ static int get_input(SHCodecs_Decoder * decoder, void *dst)
 		return usr_get_input_mpeg4(decoder, dst);
 	}
 }
-

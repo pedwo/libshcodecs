@@ -59,4 +59,3 @@ shcodecs_encoder_set_frame_no_increment (SHCodecs_Encoder * encoder, long frame_
 
   return old_value;
 }
-

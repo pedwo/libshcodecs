@@ -125,7 +125,7 @@ shcodecs_encoder_get_input_user_data(SHCodecs_Encoder *encoder);
  * \retval 0 Success
  */
 int
-shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder, 
+shcodecs_encoder_input_provide (SHCodecs_Encoder * encoder,
                                 void *y_input, void *c_input);
 
 

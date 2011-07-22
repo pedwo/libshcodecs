@@ -30,7 +30,7 @@ struct SHCodecs_Decoder {
 	int		context_size;	/* Size of context */
 	int		format;		/* Type of stream */
 	unsigned char   *input_buf;	/* Pointer to input buffer */
-	unsigned char	*nal_buf;	/* NAL Buffer for H.264 */ 
+	unsigned char	*nal_buf;	/* NAL Buffer for H.264 */
 	int		input_pos;	/* Current position in input stream */
 	int		input_len;	/* Size of current frame/slice */
 	size_t		input_size;	/* Total size of input data */
