@@ -475,7 +475,6 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 		vpu_info_msg(enc, __func__, __LINE__, enc->frm, enc_rc);
 
 		if (enc_rc == AVCBE_FRAME_SKIPPED) {
-			enc->frame_num_delta++;
 			enc->frame_skip_num++;
 		}
 
@@ -520,6 +519,8 @@ h264_encode_frame(SHCodecs_Encoder *enc, unsigned char *py, unsigned char *pc)
 				}
 
 				enc->frame_num_delta++;
+				enc->frame_num_delta += enc->frame_skip_num;
+				enc->frame_skip_num = 0;
 				start_of_frame = 0;
 			}
 
