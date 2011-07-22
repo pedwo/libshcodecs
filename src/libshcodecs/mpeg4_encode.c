@@ -321,7 +321,6 @@ mpeg4_encode_frame (SHCodecs_Encoder *enc,
 		return vpu_err(enc, __func__, __LINE__, rc);
 
 	if (rc == AVCBE_FRAME_SKIPPED) {
-		enc->frame_num_delta++;
 		enc->frame_skip_num++;
 	}
 
@@ -344,6 +343,8 @@ mpeg4_encode_frame (SHCodecs_Encoder *enc,
 		pic_type = frame_stat.avcbe_frame_type;
 
 		enc->frame_num_delta++;
+		enc->frame_num_delta += enc->frame_skip_num;
+		enc->frame_skip_num = 0;
 
 		/* Output frame data */
 		if (pic_type == AVCBE_I_VOP) {
