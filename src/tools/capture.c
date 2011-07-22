@@ -1,5 +1,5 @@
 /*
- *  V4L2 video capture example
+ *  V4L2 video capture
  *
  *  This program can be used and distributed without restrictions.
  */
@@ -486,13 +486,15 @@ static void init_device(capture * cap)
 
 static void close_device(capture * cap)
 {
+	uiomux_close(cap->uiomux);
+
 	if (-1 == close(cap->fd))
 		errno_exit("close");
 
 	cap->fd = -1;
 }
 
-static void open_device(capture * cap, UIOMux * uiomux)
+static void open_device(capture * cap)
 {
 	struct stat st;
 
@@ -516,7 +518,12 @@ static void open_device(capture * cap, UIOMux * uiomux)
 	}
 
 	/* User mapped memory */
-	cap->uiomux = uiomux;
+	cap->uiomux = uiomux_open();
+	if (cap->uiomux == 0) {
+		fprintf(stderr, "Cannot uiomux: %d, %s\n",
+			errno, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
 }
 
 void capture_close(capture * cap)
@@ -528,7 +535,7 @@ void capture_close(capture * cap)
 	free(cap);
 }
 
-static capture *capture_open_mode(const char *device_name, int width, int height, int mode, UIOMux * uiomux)
+static capture *capture_open_mode(const char *device_name, int width, int height, int mode)
 {
 	capture *cap;
 
@@ -541,7 +548,7 @@ static capture *capture_open_mode(const char *device_name, int width, int height
 	cap->width = width;
 	cap->height = height;
 
-	open_device(cap, uiomux);
+	open_device(cap);
 	init_device(cap);
 
 	return cap;
@@ -549,12 +556,12 @@ static capture *capture_open_mode(const char *device_name, int width, int height
 
 capture *capture_open(const char *device_name, int width, int height)
 {
-	return capture_open_mode(device_name, width, height, IO_METHOD_MMAP, NULL);
+	return capture_open_mode(device_name, width, height, IO_METHOD_MMAP);
 }
 
-capture *capture_open_userio(const char *device_name, int width, int height, UIOMux * uiomux)
+capture *capture_open_userio(const char *device_name, int width, int height)
 {
-	return capture_open_mode(device_name, width, height, IO_METHOD_USERPTR, uiomux);
+	return capture_open_mode(device_name, width, height, IO_METHOD_USERPTR);
 }
 
 int capture_get_width(capture * cap)

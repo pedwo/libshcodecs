@@ -1,26 +1,11 @@
 /*
- * libshcodecs: A library for controlling SH-Mobile hardware codecs
- * Copyright (C) 2009 Renesas Technology Corp.
+ *  V4L2 video capture
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA  02110-1301 USA
+ *  This program can be used and distributed without restrictions.
  */
 
 #ifndef __CAPTURE_H__
 #define __CAPTURE_H__
-
-#include <uiomux/uiomux.h>
 
 #define NUM_CAPTURE_BUFS 2
 
@@ -32,7 +17,7 @@ typedef void (*capture_callback) (capture * cap, const unsigned char *frame_data
 
 capture *capture_open(const char *device_name, int width, int height);
 
-capture *capture_open_userio(const char *device_name, int width, int height, UIOMux * uiomux);
+capture *capture_open_userio(const char *device_name, int width, int height);
 
 void capture_close(capture * cap);
 
@@ -52,4 +37,4 @@ int capture_get_width(capture * cap);
 int capture_get_height(capture * cap);
 unsigned int capture_get_pixel_format(capture * cap);
 
-#endif				/* __CAPTURE_H__ */
+#endif /* __CAPTURE_H__ */

@@ -773,7 +773,7 @@ int main(int argc, char *argv[])
 		struct camera_data *cam = &pvt->cameras[i];
 
 		/* Camera capture initialization */
-		cam->ceu = capture_open_userio(cam->devicename, cam->cap_w, cam->cap_h, pvt->uiomux);
+		cam->ceu = capture_open_userio(cam->devicename, cam->cap_w, cam->cap_h);
 		if (cam->ceu == NULL) {
 			fprintf(stderr, "capture_open failed, exiting\n");
 			return -3;

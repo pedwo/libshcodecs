@@ -177,7 +177,7 @@ int main(int argc, char **argv)
 			fprintf (stderr, "Could not open UIOMux, exiting\n");
 			exit (EXIT_FAILURE);
 		}
-		cam.ceu = capture_open_userio(cam.dev_name, cam.width, cam.height, uiomux);
+		cam.ceu = capture_open_userio(cam.dev_name, cam.width, cam.height);
 	}
 	cam.cap_framerate = framerate_new_timer (30.0);
 
