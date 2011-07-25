@@ -147,7 +147,8 @@ void shcodecs_decoder_close(SHCodecs_Decoder * decoder)
 	if (decoder->frames) {
 		for (i = 0; i < decoder->num_frames; i++) {
 			if (decoder->frames[i].Y_fmemp)
-				m4iph_sdr_free(decoder->vpu, decoder->frames[i].Y_fmemp, size_of_Y);
+				m4iph_sdr_free(decoder->vpu, decoder->frames[i].Y_fmemp,
+						size_of_Y + size_of_Y/2);
 		}
 		free (decoder->frames);
 		decoder->frames = NULL;
