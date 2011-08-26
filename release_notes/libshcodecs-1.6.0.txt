@@ -1,0 +1,98 @@
+libshcodecs 1.6.0 Release
+=========================
+
+libshcodecs is a library for controlling SH-Mobile hardware codecs.
+
+The [SH-Mobile][0] processor series includes a hardware video processing
+unit that supports MPEG-4 and H.264 encoding and decoding.
+libshcodecs is available under the terms of the GNU LGPL.
+
+The source archive, and more information about the library are available from:
+
+	https://oss.renesas.com/modules/document/?libshcodecs
+
+
+New in this release
+-------------------
+
+This release fixes bugs in handling skipped frames and also the order in which
+nals are output. It also adds a function to get the encoded SPS & PPS header
+nals. There are a lot of minor changes related to the included tools.
+
+
+Details
+-------
+
+This release includes the following changes since version 1.5.0:
+
+Phil Edworthy (22):
+      dec: Fix size used to free frame buffers.
+      tools: capture: Sync with gst-sh-mobile
+      cosmetic: Formatting to match gst-sh-mobile
+      tools: display only needs to open VEU via UIOMux
+      cosmetic: Remove trailing whitespace
+      enc: mpeg4: Fix frame_num_delta when skipping frames
+      enc: Fix frame_num_delta when skipping frames
+      Another spelling mistake
+      Spelling corrected
+      toosl: recor: Correct comment about blend use
+      tools: record: Fix preview where scaled image sizes are invalid.
+      tools: record: Add diagram showing data flow
+      tools: record: Increase number of encoder input buffers used.
+      tools: Free all uiomux allocated buffers
+      tools: munmap the frame buffer
+      enc: SPS/PPS headers: Add code to initialise the encoder if not already done
+      enc: h264: Make output the same as x264
+      enc: h264: Add function to get the SPS & PPS header NALs
+      enc: h264: Encode & output SPS/PPS before anything else
+      enc: Remove redundant h264 code
+      enc: H.264 Frame rate - set fixed frame rate flag in SPS
+      Specify a default UIO device name.
+
+George A. Dorobantu (1):
+      libshcodecs: Spelling correction
+
+ configure.ac                         |    4 +-
+ data/KMp4-v4l2-stream.ctl            |    2 +-
+ data/KMp4-v4l2.ctl                   |    2 +-
+ data/KMp4_000.ctl                    |    2 +-
+ include/shcodecs/encode_h264.h       |   14 +++
+ include/shcodecs/encode_mpeg4.h      |   16 ++--
+ include/shcodecs/shcodecs.h          |    9 +-
+ include/shcodecs/shcodecs_encoder.h  |    2 +-
+ src/examples/Android.mk              |    4 +-
+ src/libshcodecs/Android.mk           |    3 +-
+ src/libshcodecs/Version_script.in    |   11 ++-
+ src/libshcodecs/avcbe.h              |    2 +-
+ src/libshcodecs/decoder_private.h    |    2 +-
+ src/libshcodecs/encoder_common.c     |    7 +-
+ src/libshcodecs/encoder_defaults.c   |    8 +-
+ src/libshcodecs/encoder_private.h    |    9 ++-
+ src/libshcodecs/general_accessors.c  |    1 -
+ src/libshcodecs/h264_encode.c        |  145 ++++++++++++++++++++--------------
+ src/libshcodecs/m4driverif.c         |   32 ++++----
+ src/libshcodecs/mpeg4_accessors.c    |   24 +++---
+ src/libshcodecs/mpeg4_encode.c       |   11 +--
+ src/libshcodecs/property_accessors.c |    3 +-
+ src/libshcodecs/shcodecs_decoder.c   |    8 +-
+ src/libshcodecs/shcodecs_encoder.c   |    6 +-
+ src/tests/Android.mk                 |    2 +-
+ src/tools/Android.mk                 |   16 ++--
+ src/tools/ControlFileUtil.c          |    3 +-
+ src/tools/Makefile.am                |    2 -
+ src/tools/avcbeinputuser.c           |    5 +-
+ src/tools/capture.c                  |   40 ++++++----
+ src/tools/capture.h                  |   25 +-----
+ src/tools/display.c                  |   17 +++--
+ src/tools/display.h                  |    5 +-
+ src/tools/shcodecs-cap.c             |    2 +-
+ src/tools/shcodecs-dec.c             |    5 +-
+ src/tools/shcodecs-enc-benchmark.c   |    2 +-
+ src/tools/shcodecs-enc.c             |    2 +-
+ src/tools/shcodecs-encdec.c          |   16 ++--
+ src/tools/shcodecs-play.c            |   13 ++--
+ src/tools/shcodecs-record.c          |   75 ++++++++++++++---
+ 40 files changed, 315 insertions(+), 242 deletions(-)
+
+[0]: http://www.renesas.com/fmwk.jsp?cnt=sh_mobile_family_landing.jsp&fp=/products/mpumcu/sh_mobile/
+
